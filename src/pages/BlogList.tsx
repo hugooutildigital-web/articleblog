@@ -79,9 +79,7 @@ const BlogList = () => {
                   <div className="p-5 space-y-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                       <Calendar className="w-3 h-3" />
-                      {article.published_at
-                        ? format(parseISO(article.published_at), "dd MMMM yyyy", { locale: fr })
-                        : "—"}
+                      {format(parseISO(article.published_at || article.created_at), "dd MMMM yyyy", { locale: fr })}
                       {site && (
                         <>
                           <span className="text-border">·</span>

@@ -109,9 +109,7 @@ const BlogArticle = () => {
         <div className="max-w-[750px] mx-auto px-6 py-4 flex flex-wrap items-center gap-4 md:gap-6 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5 font-mono text-xs">
             <Calendar className="w-3.5 h-3.5" />
-            {article.published_at
-              ? format(parseISO(article.published_at), "dd MMMM yyyy", { locale: fr })
-              : "Non publié"}
+            {format(parseISO(article.published_at || article.created_at), "dd MMMM yyyy", { locale: fr })}
           </span>
           <span className="flex items-center gap-1.5 font-mono text-xs">
             <Clock className="w-3.5 h-3.5" />
