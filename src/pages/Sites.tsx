@@ -95,7 +95,7 @@ const Sites = () => {
               : null;
 
             return (
-              <div key={site.id} className="bg-card border border-border rounded-lg p-5 transition-all hover:border-primary/30 group">
+              <div key={site.id} className="bg-card border border-border rounded-lg p-5 transition-all hover:border-primary/30 group cursor-pointer" onClick={() => navigate(`/sites/${site.id}`)}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold shrink-0" style={{ backgroundColor: (site.color ?? "#00e87a") + "22", color: site.color ?? "#00e87a" }}>
