@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSites, useCreateSite, useDeleteSite, useAllArticles } from "@/hooks/useData";
-import { Globe, ExternalLink, Plus, FileText, Trash2, Copy } from "lucide-react";
+import { Globe, ExternalLink, Plus, FileText, Trash2, Copy, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
