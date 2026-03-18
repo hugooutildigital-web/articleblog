@@ -1,18 +1,30 @@
-import { Article, getSiteName, getSiteColor } from "@/lib/mockData";
+import type { Article, Site } from "@/hooks/useData";
+import { useDeleteArticle } from "@/hooks/useData";
 import { ExternalLink, Pencil, Trash2, Copy, Clock, Bot, PenLine } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ArticleCardProps {
   article: Article;
+  sites: Site[];
 }
 
-const ArticleCard = ({ article }: ArticleCardProps) => {
-  const siteName = getSiteName(article.siteId);
-  const siteColor = getSiteColor(article.siteId);
+const ArticleCard = ({ article, sites }: ArticleCardProps) => {
+  const site = sites.find((s) => s.id === article.site_id);
+  const siteName = site?.name ?? "Inconnu";
+  const siteColor = site?.color ?? "#666";
   const isPublished = article.status === "published";
+  const deleteArticle = useDeleteArticle();
+
+  const handleDelete = () => {
+    deleteArticle.mutate(article.id, {
+      onSuccess: () => toast.success("Article supprimé"),
+      onError: () => toast.error("Erreur lors de la suppression"),
+    });
+  };
 
   return (
     <div className="bg-card border border-border rounded-lg p-5 transition-all hover:border-primary/30 group">
@@ -27,7 +39,7 @@ const ArticleCard = ({ article }: ArticleCardProps) => {
                 isPublished ? "bg-primary/15 text-primary border-primary/20" : "bg-amber/10 text-amber border-amber/20"
               }`}
             >
-              {isPublished ? "Publié" : "Planifié"}
+              {isPublished ? "Publié" : article.status === "scheduled" ? "Planifié" : "Brouillon"}
             </Badge>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
               {article.mode === "auto" ? <Bot className="w-3 h-3" /> : <PenLine className="w-3 h-3" />}
@@ -36,13 +48,13 @@ const ArticleCard = ({ article }: ArticleCardProps) => {
           </div>
 
           <h3 className="font-display text-base font-semibold text-foreground truncate">{article.title}</h3>
-          <p className="text-xs text-muted-foreground mt-1 truncate">{article.excerpt}</p>
+          {article.excerpt && <p className="text-xs text-muted-foreground mt-1 truncate">{article.excerpt}</p>}
 
           <div className="flex items-center gap-3 mt-3">
             <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {article.scheduledAt
-                ? format(parseISO(article.scheduledAt), "dd MMM yyyy · HH:mm", { locale: fr })
+              {article.scheduled_at
+                ? format(parseISO(article.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
                 : "—"}
             </span>
             {article.category && (
@@ -54,14 +66,14 @@ const ArticleCard = ({ article }: ArticleCardProps) => {
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {article.pageUrl ? (
-            <a href={article.pageUrl} target="_blank" rel="noopener noreferrer">
+          {article.page_url ? (
+            <a href={article.page_url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
           ) : (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground cursor-not-allowed" disabled>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled>
               <ExternalLink className="w-3.5 h-3.5" />
             </Button>
           )}
@@ -71,7 +83,7 @@ const ArticleCard = ({ article }: ArticleCardProps) => {
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <Copy className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={handleDelete}>
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
