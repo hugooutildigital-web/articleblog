@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSites, useCreateSite, useDeleteSite, useAllArticles } from "@/hooks/useData";
-import { Globe, ExternalLink, Plus, FileText, Trash2 } from "lucide-react";
+import { Globe, ExternalLink, Plus, FileText, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -112,7 +112,18 @@ const Sites = () => {
                   </Button>
                 </div>
 
-                {site.description && <p className="text-xs text-muted-foreground mb-4">{site.description}</p>}
+                {site.description && <p className="text-xs text-muted-foreground mb-3">{site.description}</p>}
+
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="font-mono text-[10px] text-muted-foreground bg-surface px-2 py-1 rounded truncate">{site.id}</span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(site.id); toast.success("UUID copié !"); }}
+                    className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                    title="Copier l'UUID"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-3">
                   <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{siteArticles.length} articles</span>
