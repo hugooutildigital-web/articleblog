@@ -11,6 +11,7 @@ import Sites from "@/pages/Sites";
 import NewArticle from "@/pages/NewArticle";
 import BlogList from "@/pages/BlogList";
 import BlogArticle from "@/pages/BlogArticle";
+import IntegrationGuide from "@/pages/IntegrationGuide";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
