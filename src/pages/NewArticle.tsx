@@ -135,6 +135,7 @@ const NewArticle = () => {
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
           siteDescription: selectedSiteData?.description || "",
+          siteUrl: selectedSiteData?.url || "",
           title,
           instructions,
           tone,

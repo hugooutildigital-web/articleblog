@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { mode, siteName, siteNiche, siteDescription, title, instructions, tone, keywords, category } = await req.json();
+    const { mode, siteName, siteNiche, siteDescription, siteUrl, siteCity, title, instructions, tone, keywords, category } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -19,46 +19,85 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (mode === "auto") {
-      systemPrompt = `Tu es un rédacteur web professionnel spécialisé en SEO et content marketing. Tu rédiges des articles de blog complets, engageants et optimisés pour le référencement. Tu écris en français sauf indication contraire. Tu retournes le contenu en HTML structuré avec des balises h2, h3, p, ul, li, strong, em. Ne mets PAS de balise h1 — le titre sera ajouté séparément.`;
-      
-      userPrompt = `Génère un article de blog complet pour le site "${siteName}".
-Niche/domaine : ${siteNiche || "général"}
-Description du site : ${siteDescription || "non fournie"}
+      systemPrompt = `Tu es un expert en rédaction web et en référencement local. Ton rôle est de rédiger un article de blog long, naturel et engageant, comme si tu étais un conseiller ou un gérant d'entreprise qui connaît son terrain. Le texte doit refléter un ton humain, empathique, professionnel, sans jamais sembler généré par une IA.
+
+Tu retournes le contenu en HTML structuré avec des balises h2, h3, p, ul, ol, li, strong, em. Ne mets PAS de balise h1 — le titre sera ajouté séparément.
+
+Règles strictes :
+- Le texte doit absolument éviter tout style robotique ou générique
+- Il doit sembler rédigé par un expert du terrain, qui connaît les problématiques concrètes des clients
+- Ton naturel, proche, professionnel mais pas scolaire
+- L'article doit partir d'un constat réel, d'un problème vécu, ou d'une mise en situation locale
+- Ne commence JAMAIS directement par une liste ou une solution
+- Pars toujours d'un angle humain, local ou contextuel
+- Sous-titres H2 et H3 clairs, paragraphes bien aérés, transitions fluides
+- Intègre naturellement des mots-clés locaux et métier sans forcer
+- Ponctuation et orthographe parfaites
+- Aucun numéro de téléphone ni email
+- Pas de numérotation globale 1), 2), etc.
+- Pas d'introduction/conclusion générique ou bateau
+- Majuscules uniquement en début de phrase et pour les noms propres
+- Pas de promotions directes ni de tarifs
+- Optimisé pour le référencement naturel local`;
+
+      userPrompt = `Rédige un article de blog complet pour l'entreprise "${siteName}"${siteCity ? ` dans la ville de "${siteCity}"` : ""}.
+
+${siteNiche ? `Domaine d'activité : ${siteNiche}` : ""}
+${siteDescription ? `Description de l'entreprise : ${siteDescription}` : ""}
+${siteUrl ? `Site internet : ${siteUrl}` : ""}
 ${category ? `Catégorie : ${category}` : ""}
 
 L'article doit :
-- Avoir un titre accrocheur (retourne-le sur la première ligne, préfixé par "TITRE: ")
-- Faire environ 800-1200 mots
-- Être optimisé SEO avec des sous-titres pertinents
-- Inclure une introduction engageante et une conclusion
-- Être pertinent pour la niche du site
-- Retourner aussi un extrait de 2 phrases (préfixé par "EXTRAIT: " sur une ligne séparée après le titre)
+- Avoir un titre H1 accrocheur, optimisé SEO, qui donne envie de lire
+- Faire entre 800 et 1200 mots
+- Commencer par un angle humain ou une problématique concrète (PAS une liste)
+- Contenir 3 à 5 sections avec sous-titres H2, pouvant contenir des sous-sections H3
+- Se terminer par une conclusion naturelle avec un appel à l'action implicite vers l'entreprise
+- Positionner naturellement l'entreprise comme experte locale de son domaine
+- Apporter une vraie valeur informationnelle au lecteur
+- Alterner les formats : guide pratique, conseils d'expert, storytelling, cas concret, FAQ développée, article éducatif, retour d'expérience, focus saisonnier, comparatif, coulisses du métier
 
-Format de réponse :
+Format de réponse STRICT :
 TITRE: [titre de l'article]
-EXTRAIT: [extrait de 2 phrases]
+EXTRAIT: [extrait de 2 phrases, 150-160 caractères, optimisé SEO]
 CONTENU:
 [contenu HTML de l'article]`;
     } else {
-      systemPrompt = `Tu es un rédacteur web professionnel. Tu rédiges des articles de blog sur mesure selon les instructions fournies. Tu écris en français sauf indication contraire. Tu retournes le contenu en HTML structuré avec des balises h2, h3, p, ul, li, strong, em. Ne mets PAS de balise h1.`;
+      systemPrompt = `Tu es un expert en rédaction web et en référencement local. Tu rédiges des articles de blog sur mesure selon les instructions fournies. Le texte doit refléter un ton humain, empathique, professionnel, sans jamais sembler généré par une IA.
 
-      userPrompt = `Rédige un article de blog pour le site "${siteName}".
-${title ? `Sujet/Titre souhaité : ${title}` : ""}
+Tu retournes le contenu en HTML structuré avec des balises h2, h3, p, ul, ol, li, strong, em. Ne mets PAS de balise h1.
+
+Règles strictes :
+- Ton naturel, proche, professionnel mais pas scolaire
+- Sous-titres H2 et H3 clairs, paragraphes bien aérés, transitions fluides
+- Intègre naturellement des mots-clés locaux et métier
+- Ponctuation et orthographe parfaites
+- Aucun numéro de téléphone ni email
+- Pas de numérotation globale 1), 2), etc.
+- Pas d'introduction/conclusion générique
+- Pas de promotions directes ni de tarifs
+- Optimisé pour le référencement naturel local`;
+
+      userPrompt = `Rédige un article de blog pour l'entreprise "${siteName}"${siteCity ? ` dans la ville de "${siteCity}"` : ""}.
+${title ? `Sujet : ${title}` : ""}
 ${instructions ? `Instructions : ${instructions}` : ""}
 ${tone ? `Ton souhaité : ${tone}` : ""}
 ${keywords ? `Mots-clés cibles : ${keywords}` : ""}
 ${category ? `Catégorie : ${category}` : ""}
+${siteDescription ? `Description de l'entreprise : ${siteDescription}` : ""}
+${siteUrl ? `Site internet : ${siteUrl}` : ""}
 
 L'article doit :
-- Faire environ 800-1200 mots
-- Être optimisé SEO
-- Inclure une introduction et une conclusion
-- Si aucun titre n'est fourni, en proposer un accrocheur
-- Retourner aussi un extrait de 2 phrases
+- Faire entre 800 et 1200 mots
+- Être optimisé SEO local
+- Commencer par un angle humain ou une problématique concrète
+- Contenir 3 à 5 sections avec sous-titres H2/H3
+- Se terminer par un appel à l'action implicite
+- Si aucun titre n'est fourni, en proposer un accrocheur et optimisé SEO
 
-Format de réponse :
+Format de réponse STRICT :
 TITRE: [titre de l'article]
-EXTRAIT: [extrait de 2 phrases]
+EXTRAIT: [extrait de 2 phrases, 150-160 caractères, optimisé SEO]
 CONTENU:
 [contenu HTML de l'article]`;
     }
@@ -70,6 +109,7 @@ CONTENU:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
