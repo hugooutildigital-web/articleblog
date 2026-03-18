@@ -12,6 +12,7 @@ import NewArticle from "@/pages/NewArticle";
 import BlogList from "@/pages/BlogList";
 import BlogArticle from "@/pages/BlogArticle";
 import IntegrationGuide from "@/pages/IntegrationGuide";
+import SiteDashboard from "@/pages/SiteDashboard";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/sites" element={<Sites />} />
             <Route path="/new-article" element={<NewArticle />} />
             <Route path="/guide" element={<IntegrationGuide />} />
+            <Route path="/sites/:siteId" element={<SiteDashboard />} />
           </Route>
           <Route path="/blog" element={<BlogList />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
