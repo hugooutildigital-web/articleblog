@@ -1,12 +1,15 @@
-import { articles, getSiteColor, getSiteName } from "@/lib/mockData";
+import type { Article, Site } from "@/hooks/useData";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
-const TimelineStrip = () => {
+interface TimelineStripProps {
+  articles: Article[];
+  sites: Site[];
+}
+
+const TimelineStrip = ({ articles, sites }: TimelineStripProps) => {
   const today = new Date();
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
-
-  const scheduled = articles.filter((a) => a.status === "scheduled" && a.scheduledAt);
 
   return (
     <div className="bg-card border border-border rounded-lg p-5">
@@ -15,8 +18,8 @@ const TimelineStrip = () => {
       </h3>
       <div className="flex gap-2 overflow-x-auto pb-2">
         {days.map((day) => {
-          const dayArticles = scheduled.filter(
-            (a) => a.scheduledAt && isSameDay(parseISO(a.scheduledAt), day)
+          const dayArticles = articles.filter(
+            (a) => a.scheduled_at && isSameDay(parseISO(a.scheduled_at), day)
           );
           const isToday = isSameDay(day, today);
 
@@ -36,14 +39,17 @@ const TimelineStrip = () => {
                 {format(day, "dd")}
               </p>
               <div className="flex justify-center gap-1 mt-2 min-h-[8px]">
-                {dayArticles.map((a) => (
-                  <div
-                    key={a.id}
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: getSiteColor(a.siteId) }}
-                    title={`${a.title} — ${getSiteName(a.siteId)}`}
-                  />
-                ))}
+                {dayArticles.map((a) => {
+                  const site = sites.find((s) => s.id === a.site_id);
+                  return (
+                    <div
+                      key={a.id}
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: site?.color ?? "#666" }}
+                      title={`${a.title} — ${site?.name ?? "?"}`}
+                    />
+                  );
+                })}
               </div>
             </div>
           );

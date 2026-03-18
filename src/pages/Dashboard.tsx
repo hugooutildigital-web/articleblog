@@ -4,17 +4,25 @@ import StatCard from "@/components/StatCard";
 import TimelineStrip from "@/components/TimelineStrip";
 import ArticleCard from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
-import { articles, sites } from "@/lib/mockData";
+import { useAllArticles, useSites } from "@/hooks/useData";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { data: articles = [], isLoading: loadingArticles } = useAllArticles();
+  const { data: sites = [], isLoading: loadingSites } = useSites();
+
   const published = articles.filter((a) => a.status === "published");
   const scheduled = articles.filter((a) => a.status === "scheduled");
-  const recent = [...articles].sort((a, b) => {
-    const da = a.publishedAt || a.scheduledAt || "";
-    const db = b.publishedAt || b.scheduledAt || "";
-    return db.localeCompare(da);
-  }).slice(0, 3);
+  const drafts = articles.filter((a) => a.status === "draft");
+  const recent = articles.slice(0, 3);
+
+  if (loadingArticles || loadingSites) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[50vh]">
+        <p className="text-muted-foreground font-mono text-sm animate-pulse">Chargement...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
@@ -32,18 +40,22 @@ const Dashboard = () => {
       <div className="grid grid-cols-4 gap-4">
         <StatCard label="Articles publiés" value={published.length} icon={FileText} accent />
         <StatCard label="Planifiés" value={scheduled.length} icon={CalendarCheck} />
-        <StatCard label="En attente" value={0} icon={Clock} />
+        <StatCard label="Brouillons" value={drafts.length} icon={Clock} />
         <StatCard label="Sites connectés" value={sites.length} icon={Globe} />
       </div>
 
-      <TimelineStrip />
+      <TimelineStrip articles={scheduled} sites={sites} />
 
       <div>
         <h2 className="font-display text-lg font-semibold text-foreground mb-4">Activité récente</h2>
         <div className="space-y-3">
-          {recent.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
+          {recent.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Aucun article pour le moment</p>
+          ) : (
+            recent.map((article) => (
+              <ArticleCard key={article.id} article={article} sites={sites} />
+            ))
+          )}
         </div>
       </div>
     </div>
