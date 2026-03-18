@@ -1,5 +1,5 @@
 import { useSites } from "@/hooks/useData";
-import { Copy, Check, BookOpen, Database, Layout, Bug } from "lucide-react";
+import { Copy, Check, BookOpen, Rocket, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -7,7 +7,59 @@ import { toast } from "sonner";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-const CopyBlock = ({ label, icon: Icon, prompt }: { label: string; icon: React.ElementType; prompt: string }) => {
+const getFullPrompt = (siteId: string, siteName: string) =>
+  `Connecte ce projet à la base de données Supabase partagée de BlogFlow et configure le blog complet.
+
+=== 1. CONNEXION SUPABASE ===
+
+URL Supabase : ${SUPABASE_URL}
+Clé anon : ${SUPABASE_KEY}
+site_id : ${siteId}
+Nom du site : ${siteName}
+
+Installe @supabase/supabase-js et @tanstack/react-query.
+Crée un client Supabase avec createClient(URL, KEY).
+
+Crée un hook "useBlogArticles" qui récupère les articles depuis la table "articles" avec :
+- site_id = '${siteId}'
+- status = 'published'
+- Ordre : published_at DESC
+
+Crée un hook "useBlogArticle(slug)" qui récupère un seul article par slug et site_id = '${siteId}'.
+
+=== 2. MISE EN PAGE BLOG ===
+
+Page /blog (liste des articles) :
+- Grille 3 colonnes sur desktop, 1 colonne sur mobile
+- Chaque carte affiche : image, titre, extrait, date de publication, bouton "Lire l'article"
+- Pour l'image, utilise image_url de l'article. Si null, génère une image via Pollinations.ai :
+  const imageUrl = article.image_url || \`https://image.pollinations.ai/prompt/\${encodeURIComponent(article.title + ', professional photography, high quality')}?width=1200&height=630&nologo=true\`;
+
+Page /blog/:slug (article) :
+- Image hero pleine largeur (hauteur 450px) avec dégradé sombre en bas et titre superposé en blanc
+- Métadonnées sous le hero : date de publication, temps de lecture estimé, catégorie
+- Contenu centré, largeur max 750px, police 18px, interligne 1.8
+- Titres h2 avec bordure gauche accent, h3 en gras avec couleur accent
+- Image illustrative insérée au milieu du contenu (même logique Pollinations.ai)
+- Encadré de présentation en bas avec logo et bouton CTA
+
+=== 3. CORRECTIONS IMPORTANTES ===
+
+DATE : Ne JAMAIS utiliser published_at directement car il peut être null.
+→ Utilise ce fallback partout : article.published_at || article.created_at
+→ Format avec date-fns : format(parseISO(date), "d MMMM yyyy", { locale: fr })
+
+IMAGES : image_url est souvent null dans la base.
+→ Génère TOUJOURS une image de fallback via Pollinations.ai avec le titre encodé en URL
+→ Utilise cette logique dans la liste /blog ET dans le hero de /blog/:slug
+
+LAYOUT : La page article doit avoir :
+- Hero image 450px avec titre superposé sur dégradé sombre (gradient-to-t from-black/80)
+- Contenu centré max-w-[750px], text-lg, leading-relaxed
+- Métadonnées formatées en ligne sous le hero
+- Pas de texte coupé, pas de layout cassé sur mobile`;
+
+const CopyBlock = ({ prompt }: { prompt: string }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -19,11 +71,7 @@ const CopyBlock = ({ label, icon: Icon, prompt }: { label: string; icon: React.E
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-        <Icon className="w-4 h-4 text-primary" />
-        <h3 className="font-display text-sm font-semibold text-foreground">{label}</h3>
-      </div>
-      <pre className="p-4 text-xs text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+      <pre className="p-4 text-xs text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
         {prompt}
       </pre>
       <div className="px-4 py-3 border-t border-border flex justify-end">
@@ -36,61 +84,12 @@ const CopyBlock = ({ label, icon: Icon, prompt }: { label: string; icon: React.E
   );
 };
 
-const getSupabasePrompt = (siteId: string, siteName: string) =>
-  `Connecte ce projet Lovable à la base de données Supabase partagée de BlogFlow.
-
-URL Supabase : ${SUPABASE_URL}
-Clé anon : ${SUPABASE_KEY}
-
-Ce site a l'identifiant site_id : ${siteId}
-Nom du site : ${siteName}
-
-Crée un hook React "useBlogArticles" qui récupère les articles depuis la table "articles" avec les filtres :
-- site_id = '${siteId}'
-- status = 'published'
-Ordonne par published_at DESC.
-
-Crée aussi un hook "useBlogArticle(slug)" qui récupère un seul article par son slug et site_id.
-
-Utilise le client Supabase avec createClient(URL, KEY) et @tanstack/react-query.`;
-
-const getLayoutPrompt = () =>
-  `Refais la mise en page du blog pour qu'il ressemble à un vrai blog professionnel :
-
-Page /blog (liste des articles) :
-- Grille 3 colonnes sur desktop, 1 colonne sur mobile
-- Chaque carte affiche : image, titre, extrait, date de publication, bouton "Lire l'article"
-- Pour l'image, utilise image_url de l'article. Si null, génère une image via Pollinations.ai :
-  https://image.pollinations.ai/prompt/{encodeURIComponent(titre + ', professional photography, high quality')}?width=1200&height=630&nologo=true
-
-Page /blog/:slug (article) :
-- Image hero pleine largeur (hauteur 450px) avec dégradé sombre en bas et titre superposé en blanc
-- Métadonnées sous le hero : date de publication, temps de lecture estimé, catégorie
-- Contenu centré, largeur max 750px, police 18px, interligne 1.8
-- Titres h2 avec bordure gauche accent, h3 en gras avec couleur accent
-- Image illustrative insérée au milieu du contenu (même logique Pollinations.ai)
-- Encadré de présentation en bas avec logo et bouton CTA`;
-
-const getBugfixPrompt = () =>
-  `Corrige ces bugs connus sur les pages blog :
-
-1. DATE INCORRECTE : La date affiche "1 janvier 1970" quand published_at est null.
-   → Utilise ce fallback partout : article.published_at || article.created_at
-   → Format avec date-fns : format(parseISO(date), "d MMMM yyyy", { locale: fr })
-
-2. IMAGES MANQUANTES : image_url est souvent null dans la base.
-   → Génère une image de fallback via Pollinations.ai :
-   const imageUrl = article.image_url || \`https://image.pollinations.ai/prompt/\${encodeURIComponent(article.title + ', professional photography, high quality')}?width=1200&height=630&nologo=true\`;
-   → Utilise cette logique dans la liste /blog ET dans le hero de /blog/:slug
-
-3. LAYOUT ARTICLE : La page article doit avoir :
-   - Hero image 450px avec titre superposé sur dégradé sombre
-   - Contenu centré max-w-[750px], text-lg, leading-relaxed (interligne 1.8)
-   - Métadonnées formatées sous le hero
-   - Pas de texte coupé, pas de layout cassé`;
-
 const IntegrationGuide = () => {
   const { data: sites = [], isLoading } = useSites();
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const selectedSite = sites.find((s) => s.id === selectedSiteId) ?? sites[0] ?? null;
 
   if (isLoading) {
     return (
@@ -108,69 +107,85 @@ const IntegrationGuide = () => {
           Guide d'intégration
         </h1>
         <p className="font-mono text-xs text-muted-foreground mt-1">
-          Prompts prêts à copier-coller dans le Lovable de chaque site connecté
+          Prompt complet à copier-coller dans le Lovable du site connecté
         </p>
       </div>
 
       {sites.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-16">
-          Aucun site connecté. Ajoutez un site depuis la page Sites pour voir les prompts.
+          Aucun site connecté. Ajoutez un site depuis la page Sites pour voir le prompt.
         </p>
       ) : (
-        sites.map((site) => (
-          <div key={site.id} className="space-y-4">
-            <div className="flex items-center gap-3 pb-2 border-b border-border">
-              <div
-                className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
-                style={{
-                  backgroundColor: (site.color ?? "#00e87a") + "22",
-                  color: site.color ?? "#00e87a",
-                }}
-              >
-                {site.name.charAt(0)}
-              </div>
-              <div>
-                <h2 className="font-display text-lg font-semibold text-foreground">{site.name}</h2>
-                <p className="font-mono text-xs text-muted-foreground">{site.url}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4 pl-2">
-              <div className="flex items-start gap-3">
-                <span className="mt-1 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                <div className="flex-1">
-                  <CopyBlock
-                    label="Connexion à la base de données"
-                    icon={Database}
-                    prompt={getSupabasePrompt(site.id, site.name)}
-                  />
+        <>
+          {/* Site Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setSelectorOpen(!selectorOpen)}
+              className="w-full flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
+                  style={{
+                    backgroundColor: (selectedSite?.color ?? "#00e87a") + "22",
+                    color: selectedSite?.color ?? "#00e87a",
+                  }}
+                >
+                  {selectedSite?.name.charAt(0)}
+                </div>
+                <div className="text-left">
+                  <p className="font-display text-sm font-semibold text-foreground">{selectedSite?.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{selectedSite?.url}</p>
                 </div>
               </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+            </button>
 
-              <div className="flex items-start gap-3">
-                <span className="mt-1 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <div className="flex-1">
-                  <CopyBlock
-                    label="Mise en page du blog"
-                    icon={Layout}
-                    prompt={getLayoutPrompt()}
-                  />
-                </div>
+            {selectorOpen && sites.length > 1 && (
+              <div className="absolute z-10 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                {sites.map((site) => (
+                  <button
+                    key={site.id}
+                    onClick={() => { setSelectedSiteId(site.id); setSelectorOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left ${
+                      site.id === selectedSite?.id ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{
+                        backgroundColor: (site.color ?? "#00e87a") + "22",
+                        color: site.color ?? "#00e87a",
+                      }}
+                    >
+                      {site.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{site.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{site.url}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
-
-              <div className="flex items-start gap-3">
-                <span className="mt-1 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                <div className="flex-1">
-                  <CopyBlock
-                    label="Corrections de bugs connus"
-                    icon={Bug}
-                    prompt={getBugfixPrompt()}
-                  />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-        ))
+
+          {/* Single unified prompt */}
+          {selectedSite && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-primary" />
+                <h2 className="font-display text-base font-semibold text-foreground">
+                  Prompt complet pour {selectedSite.name}
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Copiez ce prompt et collez-le dans le chat Lovable du projet <strong>{selectedSite.name}</strong>. Il contient la connexion base de données, la mise en page blog et les corrections de bugs.
+              </p>
+              <CopyBlock prompt={getFullPrompt(selectedSite.id, selectedSite.name)} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
