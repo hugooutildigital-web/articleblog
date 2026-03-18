@@ -1,6 +1,6 @@
 import type { Article, Site } from "@/hooks/useData";
-import { useDeleteArticle } from "@/hooks/useData";
-import { ExternalLink, Pencil, Trash2, Copy, Clock, Bot, PenLine } from "lucide-react";
+import { useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
+import { ExternalLink, Pencil, Trash2, Copy, Clock, Bot, PenLine, Rocket } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -18,12 +18,36 @@ const ArticleCard = ({ article, sites }: ArticleCardProps) => {
   const siteColor = site?.color ?? "#666";
   const isPublished = article.status === "published";
   const deleteArticle = useDeleteArticle();
+  const updateArticle = useUpdateArticle();
 
   const handleDelete = () => {
     deleteArticle.mutate(article.id, {
       onSuccess: () => toast.success("Article supprimé"),
       onError: () => toast.error("Erreur lors de la suppression"),
     });
+  };
+
+  const handlePublishNow = () => {
+    if (!site) {
+      toast.error("Site introuvable");
+      return;
+    }
+    const blogPath = site.blog_path.replace(/\/+$/, "");
+    const baseUrl = site.url.replace(/\/+$/, "");
+    const pageUrl = `${baseUrl}${blogPath}/${article.slug}`;
+
+    updateArticle.mutate(
+      {
+        id: article.id,
+        status: "published",
+        published_at: new Date().toISOString(),
+        page_url: pageUrl,
+      },
+      {
+        onSuccess: () => toast.success("Article publié !"),
+        onError: () => toast.error("Erreur lors de la publication"),
+      }
+    );
   };
 
   return (
@@ -66,6 +90,18 @@ const ArticleCard = ({ article, sites }: ArticleCardProps) => {
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!isPublished && (
+            <Button
+              variant="emerald"
+              size="sm"
+              className="h-8 text-xs gap-1"
+              onClick={handlePublishNow}
+              disabled={updateArticle.isPending}
+            >
+              <Rocket className="w-3.5 h-3.5" />
+              Publier
+            </Button>
+          )}
           {article.page_url ? (
             <a href={article.page_url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
