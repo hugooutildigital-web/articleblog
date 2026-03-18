@@ -11,6 +11,7 @@ import Sites from "@/pages/Sites";
 import NewArticle from "@/pages/NewArticle";
 import BlogList from "@/pages/BlogList";
 import BlogArticle from "@/pages/BlogArticle";
+import IntegrationGuide from "@/pages/IntegrationGuide";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/scheduler" element={<Scheduler />} />
             <Route path="/sites" element={<Sites />} />
             <Route path="/new-article" element={<NewArticle />} />
+            <Route path="/guide" element={<IntegrationGuide />} />
           </Route>
           <Route path="/blog" element={<BlogList />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />

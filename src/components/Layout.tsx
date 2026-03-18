@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, FileText, CalendarDays, Globe, Plus } from "lucide-react";
+import { LayoutDashboard, FileText, CalendarDays, Globe, Plus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { to: "/articles", icon: FileText, label: "Articles" },
   { to: "/scheduler", icon: CalendarDays, label: "Planificateur" },
   { to: "/sites", icon: Globe, label: "Sites" },
+  { to: "/guide", icon: BookOpen, label: "Guide d'intégration" },
 ];
 
 const Layout = () => {
