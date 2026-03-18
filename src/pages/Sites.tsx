@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 
 const Sites = () => {
+  const navigate = useNavigate();
   const { data: sites = [], isLoading } = useSites();
   const { data: articles = [] } = useAllArticles();
   const createSite = useCreateSite();
