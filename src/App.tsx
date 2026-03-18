@@ -9,6 +9,8 @@ import Articles from "@/pages/Articles";
 import Scheduler from "@/pages/Scheduler";
 import Sites from "@/pages/Sites";
 import NewArticle from "@/pages/NewArticle";
+import BlogList from "@/pages/BlogList";
+import BlogArticle from "@/pages/BlogArticle";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ const App = () => (
             <Route path="/sites" element={<Sites />} />
             <Route path="/new-article" element={<NewArticle />} />
           </Route>
+          <Route path="/blog" element={<BlogList />} />
+          <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
