@@ -6,9 +6,7 @@ import { ArrowRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const getImageUrl = (title: string, width = 800, height = 500) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    `Professional blog illustration for article about: ${title}, modern editorial style, clean composition, soft lighting`
-  )}?width=${width}&height=${height}&nologo=true`;
+  `https://image.pollinations.ai/prompt/${encodeURIComponent(title + ', professional photography, high quality')}?width=${width}&height=${height}&nologo=true`;
 
 const BlogList = () => {
   const { data: articles = [], isLoading } = useAllArticles();
