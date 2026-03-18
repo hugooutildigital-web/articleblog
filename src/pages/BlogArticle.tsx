@@ -7,14 +7,10 @@ import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 
 const getImageUrl = (prompt: string, width = 1200, height = 630) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    `Professional editorial photo for article: ${prompt}, cinematic lighting, high quality, editorial magazine style`
-  )}?width=${width}&height=${height}&nologo=true`;
+  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', professional photography, high quality')}?width=${width}&height=${height}&nologo=true`;
 
 const getMidImageUrl = (prompt: string) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    `Detailed illustration related to: ${prompt}, clean design, informative, modern style`
-  )}?width=1000&height=560&nologo=true`;
+  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', detailed illustration, clean design')}?width=1000&height=560&nologo=true`;
 
 const estimateReadTime = (content: string | null) => {
   if (!content) return 3;
@@ -113,9 +109,7 @@ const BlogArticle = () => {
         <div className="max-w-[750px] mx-auto px-6 py-4 flex flex-wrap items-center gap-4 md:gap-6 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5 font-mono text-xs">
             <Calendar className="w-3.5 h-3.5" />
-            {article.published_at
-              ? format(parseISO(article.published_at), "dd MMMM yyyy", { locale: fr })
-              : "Non publié"}
+            {format(parseISO(article.published_at || article.created_at), "dd MMMM yyyy", { locale: fr })}
           </span>
           <span className="flex items-center gap-1.5 font-mono text-xs">
             <Clock className="w-3.5 h-3.5" />
