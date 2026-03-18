@@ -14,7 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      articles: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string
+          excerpt: string | null
+          frequency: string | null
+          id: string
+          image_url: string | null
+          instructions: string | null
+          keywords: string[] | null
+          mode: string
+          page_url: string | null
+          published_at: string | null
+          scheduled_at: string | null
+          site_id: string
+          slug: string
+          status: string
+          title: string
+          tone: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          frequency?: string | null
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          keywords?: string[] | null
+          mode?: string
+          page_url?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          site_id: string
+          slug: string
+          status?: string
+          title: string
+          tone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          frequency?: string | null
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          keywords?: string[] | null
+          mode?: string
+          page_url?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          site_id?: string
+          slug?: string
+          status?: string
+          title?: string
+          tone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articles_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sites: {
+        Row: {
+          blog_path: string
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          niche: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          blog_path?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          niche?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          blog_path?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          niche?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
