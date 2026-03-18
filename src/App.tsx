@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/scheduler" element={<Scheduler />} />
             <Route path="/sites" element={<Sites />} />
             <Route path="/new-article" element={<NewArticle />} />
+            <Route path="/guide" element={<IntegrationGuide />} />
           </Route>
           <Route path="/blog" element={<BlogList />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
