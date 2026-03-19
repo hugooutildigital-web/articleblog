@@ -500,7 +500,7 @@ const NewArticle = () => {
             </div>
 
             {/* Auto mode: batch planning */}
-            {isAutoMode && (
+            {isBatchMode && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -557,14 +557,14 @@ const NewArticle = () => {
             )}
 
             {/* Date for custom mode or start date for auto */}
-            <div className={isAutoMode ? "" : "grid grid-cols-2 gap-4"}>
+            <div className={isBatchMode ? "" : "grid grid-cols-2 gap-4"}>
               <div>
                 <label className="text-xs text-muted-foreground font-mono mb-1.5 block">
-                  {isAutoMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
+                  {isBatchMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
                 </label>
                 <input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-              {!isAutoMode && (
+              {!isBatchMode && (
                 <div>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                   <select value="once" disabled className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
@@ -578,7 +578,7 @@ const NewArticle = () => {
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
-              {isAutoMode ? (
+              {isBatchMode ? (
                 <><Sparkles className="w-4 h-4" /> Générer les sujets</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> Générer l'article</>
@@ -589,7 +589,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3 Auto: Topic review */}
-      {step === 3 && isAutoMode && (
+      {step === 3 && isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {topicsLoading ? "Génération des sujets..." : "Valider les sujets"}
@@ -696,7 +696,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 4 Auto: Batch generation */}
-      {step === 4 && isAutoMode && (
+      {step === 4 && isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {batchGenerating ? "Rédaction en cours..." : batchCompleted.length > 0 ? "Génération terminée !" : "Lancer la rédaction"}
@@ -790,7 +790,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3: Custom mode - single article preview */}
-      {step === 3 && !isAutoMode && (
+      {step === 3 && !isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isGenerating ? "Génération en cours..." : "Aperçu & Confirmation"}
