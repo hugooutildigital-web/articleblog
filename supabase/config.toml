@@ -6,5 +6,8 @@ verify_jwt = false
 [functions.generate-article-image]
 verify_jwt = false
 
+[functions.generate-topics]
+verify_jwt = false
+
 [functions.publish-scheduled]
 verify_jwt = false
