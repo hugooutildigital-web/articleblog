@@ -9,7 +9,6 @@ import {
   generateDatesForCount,
   formatDateFr,
   formatInterval,
-  intervalToDays,
   INTERVAL_UNIT_LABELS,
   INTERVAL_UNIT_OPTIONS,
   PERIOD_LABELS,
