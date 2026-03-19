@@ -503,43 +503,38 @@ const NewArticle = () => {
             {/* Batch planning: auto or autopilot */}
             {isBatchMode && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                   <Calendar className="w-4 h-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">
-                    {mode === "autopilot" ? "Fréquence de publication" : "Planification automatique"}
+                    {mode === "autopilot" ? "Fréquence de publication" : "Planification"}
                   </span>
                 </div>
 
-                {/* Shared frequency picker: "Tous les X jours/semaines/mois" */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Tous les</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={intervalValue}
-                      onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Unité</label>
-                    <select
-                      value={intervalUnit}
-                      onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {INTERVAL_UNIT_OPTIONS.map((u) => (
-                        <option key={u} value={u}>{INTERVAL_UNIT_LABELS[u]}</option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Inline frequency: "Publier un article tous les [X] [jours ▾]" */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">Publier un article tous les</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={intervalValue}
+                    onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 bg-surface border border-border rounded-md px-2 py-1.5 text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <select
+                    value={intervalUnit}
+                    onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
+                    className="bg-surface border border-border rounded-md px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {INTERVAL_UNIT_OPTIONS.map((u) => (
+                      <option key={u} value={u}>{INTERVAL_UNIT_LABELS[u]}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {mode === "autopilot" ? (
-                  <div className="text-xs text-primary font-mono mt-2">
-                    → {frequencyLabel} · {autopilotTopicCount} sujets seront générés
+                  <div className="text-xs text-primary/70 font-mono">
+                    → {autopilotTopicCount} articles seront générés pour démarrer
                   </div>
                 ) : (
                   /* Campaign mode: also pick a period */
