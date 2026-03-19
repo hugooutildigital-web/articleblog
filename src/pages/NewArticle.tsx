@@ -432,10 +432,11 @@ const NewArticle = () => {
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="font-display text-lg font-semibold text-foreground">Choisir le mode</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             {([
-              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "L'IA génère les sujets, vous validez, puis les articles sont rédigés automatiquement." },
-              { key: "custom" as const, icon: PenLine, title: "Mode Personnalisé", desc: "Fournissez le sujet, les instructions et le ton. L'IA rédige, vous validez." },
+              { key: "autopilot" as const, icon: Zap, title: "Autopilote", desc: "Choisissez la fréquence, l'IA publie en continu. Mode campagne illimitée." },
+              { key: "auto" as const, icon: Bot, title: "Campagne planifiée", desc: "Définissez une période et une fréquence. L'IA génère les sujets, vous validez." },
+              { key: "custom" as const, icon: PenLine, title: "Article unique", desc: "Fournissez le sujet et les instructions. L'IA rédige un seul article." },
             ]).map((m) => (
               <button
                 key={m.key}
