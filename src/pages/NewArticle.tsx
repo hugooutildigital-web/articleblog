@@ -531,8 +531,8 @@ const NewArticle = () => {
               <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: SEO, Design, Tech..." className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
 
-            {/* Batch planning: auto or autopilot */}
-            {isBatchMode && (
+            {/* Frequency picker for auto + autopilot */}
+            {(mode === "auto" || mode === "autopilot") && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -541,7 +541,7 @@ const NewArticle = () => {
                   </span>
                 </div>
 
-                {/* Inline frequency: "Publier un article tous les [X] [jours ▾]" */}
+                {/* Inline frequency */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">Publier un article tous les</span>
                   <input
@@ -563,12 +563,7 @@ const NewArticle = () => {
                   </select>
                 </div>
 
-                {mode === "autopilot" ? (
-                  <div className="text-xs text-primary/70 font-mono">
-                    → {autopilotTopicCount} articles seront générés pour démarrer
-                  </div>
-                ) : (
-                  /* Campaign mode: also pick a period */
+                {mode === "auto" && (
                   <>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
@@ -609,15 +604,15 @@ const NewArticle = () => {
               </div>
             )}
 
-            {/* Date for custom mode or start date for auto */}
-            <div className={isBatchMode ? "" : "grid grid-cols-2 gap-4"}>
+            {/* Date for custom mode or start date for auto/autopilot */}
+            <div className={mode === "auto" || mode === "autopilot" ? "" : "grid grid-cols-2 gap-4"}>
               <div>
                 <label className="text-xs text-muted-foreground font-mono mb-1.5 block">
-                  {isBatchMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
+                  {mode === "auto" || mode === "autopilot" ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
                 </label>
                 <input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-              {!isBatchMode && (
+              {mode === "custom" && (
                 <div>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                   <select value="once" disabled className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
