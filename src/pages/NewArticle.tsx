@@ -164,28 +164,29 @@ const NewArticle = () => {
 
   const validatedTopics = topics.filter((t) => t.checked);
 
+  const isBatchMode = mode === "auto" || mode === "autopilot";
+
+  // For autopilot, compute topic count from frequency defaults
+  const autopilotTopicCount = mode === "autopilot" ? AUTOPILOT_TOPIC_COUNTS[planFrequency] : 0;
+
   // Calculate scheduled dates based on validated topics count
   const scheduledDates = useMemo(() => {
-    if (mode !== "auto") return [];
-    const count = validatedTopics.length || calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+    if (!isBatchMode) return [];
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
-    // Generate exactly as many dates as validated topics
-    if (validatedTopics.length > 0) {
-      const dates: Date[] = [];
-      let current = startDate;
-      for (let i = 0; i < validatedTopics.length; i++) {
-        dates.push(new Date(current));
-        switch (planFrequency) {
-          case "daily": current = new Date(current.getTime() + 86400000); break;
-          case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
-          case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
-          case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
-        }
+    const topicCount = validatedTopics.length || (mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(planFrequency, planCount, planPeriod).length);
+    const dates: Date[] = [];
+    let current = startDate;
+    for (let i = 0; i < topicCount; i++) {
+      dates.push(new Date(current));
+      switch (planFrequency) {
+        case "daily": current = new Date(current.getTime() + 86400000); break;
+        case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
+        case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
+        case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
       }
-      return dates;
     }
-    return calculateScheduledDates(planFrequency, planCount, planPeriod, startDate);
-  }, [mode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length]);
+    return dates;
+  }, [mode, isBatchMode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
 
   // Step 3 auto: fetch topics
   const handleGenerateTopics = async () => {
