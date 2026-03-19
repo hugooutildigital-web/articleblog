@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.publish-scheduled]
 verify_jwt = false
+
+[functions.verify-articles]
+verify_jwt = false
