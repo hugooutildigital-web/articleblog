@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,13 +6,14 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Eye,
-  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck,
+  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck, Zap, ZapOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import ArticlePreviewModal from "@/components/ArticlePreviewModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type TabView = "scheduled" | "published";
 
