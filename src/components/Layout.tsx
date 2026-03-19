@@ -17,8 +17,8 @@ const Layout = () => {
       <aside className="w-64 shrink-0 border-r border-border bg-sidebar flex flex-col">
         <div className="p-6 border-b border-border">
           <h1 className="font-display text-xl font-bold tracking-tight">
-            <span className="text-primary">Blog</span>
-            <span className="text-foreground">Flow</span>
+            <span className="text-primary">SEO</span>
+            <span className="text-foreground"> Sans Lesbienne</span>
           </h1>
           <p className="font-mono text-xs text-muted-foreground mt-1">automation engine</p>
         </div>

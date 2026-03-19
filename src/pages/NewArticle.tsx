@@ -427,7 +427,7 @@ const NewArticle = () => {
           <h2 className="font-display text-lg font-semibold text-foreground">Choisir le mode</h2>
           <div className="grid grid-cols-2 gap-4">
             {([
-              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "BlogFlow génère les sujets, vous validez, puis les articles sont rédigés automatiquement." },
+              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "L'IA génère les sujets, vous validez, puis les articles sont rédigés automatiquement." },
               { key: "custom" as const, icon: PenLine, title: "Mode Personnalisé", desc: "Fournissez le sujet, les instructions et le ton. L'IA rédige, vous validez." },
             ]).map((m) => (
               <button

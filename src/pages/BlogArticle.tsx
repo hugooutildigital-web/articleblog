@@ -195,7 +195,7 @@ const BlogArticle = () => {
             </div>
             <div className="flex-1 text-center md:text-left">
               <h3 className="font-display text-lg font-bold text-foreground">
-                {site?.name ?? "BlogFlow"}
+                {site?.name ?? "SEO Sans Lesbienne"}
               </h3>
               <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                 {site?.description ?? "Publication automatisée d'articles de blog de qualité professionnelle, propulsée par l'intelligence artificielle."}
