@@ -143,7 +143,7 @@ const IntegrationGuide = () => {
                     <p className="font-mono text-xs text-muted-foreground">{selectedSite?.url}</p>
                   </div>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${sites.length > 1 ? (selectorOpen ? "rotate-180" : "") : (promptVisible ? "rotate-180" : "")}`} />
               </button>
             </div>
 
