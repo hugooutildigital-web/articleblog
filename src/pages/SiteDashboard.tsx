@@ -180,7 +180,7 @@ const SiteDashboard = () => {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                         <Calendar className="w-3 h-3" />
                         <span className="font-mono" style={{ color: siteColor }}>
-                          {format(parseISO(date), "dd/MM/yyyy HH:mm", { locale: fr })}
+                          {format(parseISO(articleDate), "dd/MM/yyyy HH:mm", { locale: fr })}
                         </span>
                       </div>
 
