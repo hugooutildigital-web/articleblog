@@ -6,23 +6,28 @@ import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
 import {
   calculateScheduledDates,
+  generateDatesForCount,
   formatDateFr,
-  FREQUENCY_LABELS,
+  formatInterval,
+  intervalToDays,
+  INTERVAL_UNIT_LABELS,
+  INTERVAL_UNIT_OPTIONS,
   PERIOD_LABELS,
-  FREQUENCY_OPTIONS,
   PERIOD_OPTIONS,
-  type Frequency,
+  type IntervalUnit,
   type PeriodUnit,
 } from "@/lib/scheduling";
 
 type Mode = "auto" | "custom" | "autopilot" | null;
 
-const AUTOPILOT_TOPIC_COUNTS: Record<Frequency, number> = {
-  daily: 7,
-  weekly: 4,
-  biweekly: 4,
-  monthly: 3,
-};
+/** For autopilot, compute a reasonable first-batch count based on interval */
+function getAutopilotTopicCount(intervalValue: number, intervalUnit: IntervalUnit): number {
+  const days = intervalToDays(intervalValue, intervalUnit);
+  if (days <= 1) return 7;
+  if (days <= 7) return 5;
+  if (days <= 14) return 4;
+  return 3;
+}
 
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
