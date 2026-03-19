@@ -277,7 +277,7 @@ const NewArticle = () => {
       let raw = "";
       streamArticle({
         body: {
-          mode: "auto",
+          mode: mode || "auto",
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
           siteDescription: selectedSiteData?.description || "",
