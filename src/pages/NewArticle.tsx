@@ -500,15 +500,18 @@ const NewArticle = () => {
               <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: SEO, Design, Tech..." className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
 
-            {/* Auto mode: batch planning */}
+            {/* Batch planning: auto or autopilot */}
             {isBatchMode && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Planification automatique</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {mode === "autopilot" ? "Fréquence de publication" : "Planification automatique"}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                {mode === "autopilot" ? (
+                  /* Autopilot: frequency only */
                   <div>
                     <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                     <select
@@ -520,40 +523,61 @@ const NewArticle = () => {
                         <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={planCount}
-                      onChange={(e) => setPlanCount(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Période</label>
-                    <select
-                      value={planPeriod}
-                      onChange={(e) => setPlanPeriod(e.target.value as PeriodUnit)}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {PERIOD_OPTIONS.map((p) => (
-                        <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {(() => {
-                  const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
-                  return previewCount > 0 ? (
                     <div className="text-xs text-primary font-mono mt-2">
-                      → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                      → {AUTOPILOT_TOPIC_COUNTS[planFrequency]} sujets seront générés pour le premier lot
                     </div>
-                  ) : null;
-                })()}
+                  </div>
+                ) : (
+                  /* Auto (campaign): frequency + period */
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                        <select
+                          value={planFrequency}
+                          onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {FREQUENCY_OPTIONS.map((f) => (
+                            <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={planCount}
+                          onChange={(e) => setPlanCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Période</label>
+                        <select
+                          value={planPeriod}
+                          onChange={(e) => setPlanPeriod(e.target.value as PeriodUnit)}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {PERIOD_OPTIONS.map((p) => (
+                            <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+                      return previewCount > 0 ? (
+                        <div className="text-xs text-primary font-mono mt-2">
+                          → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                        </div>
+                      ) : null;
+                    })()}
+                  </>
+                )}
               </div>
             )}
 
