@@ -913,7 +913,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3: Custom mode - single article preview */}
-      {step === 3 && !isBatchMode && (
+      {step === 3 && mode === "custom" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isGenerating ? "Génération en cours..." : "Aperçu & Confirmation"}
