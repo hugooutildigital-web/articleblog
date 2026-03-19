@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSites, useCreateSite, useDeleteSite, useAllArticles } from "@/hooks/useData";
-import { Globe, ExternalLink, Plus, FileText, Trash2, Copy, ChevronRight } from "lucide-react";
+import { useSites, useCreateSite, useDeleteSite, useUpdateSite, useAllArticles } from "@/hooks/useData";
+import { Globe, ExternalLink, Plus, FileText, Trash2, Copy, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -16,8 +16,11 @@ const Sites = () => {
   const { data: articles = [] } = useAllArticles();
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();
+  const updateSite = useUpdateSite();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a" });
+  const [editingRevenue, setEditingRevenue] = useState<string | null>(null);
+  const [revenueValue, setRevenueValue] = useState("");
 
   const handleSubmit = () => {
     if (!form.name || !form.url) return toast.error("Nom et URL requis");
@@ -27,11 +30,33 @@ const Sites = () => {
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     deleteSite.mutate(id, {
       onSuccess: () => toast.success("Site supprimé"),
       onError: () => toast.error("Erreur lors de la suppression"),
     });
+  };
+
+  const startEditRevenue = (siteId: string, currentRevenue: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingRevenue(siteId);
+    setRevenueValue(currentRevenue > 0 ? String(currentRevenue) : "");
+  };
+
+  const saveRevenue = (siteId: string, e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation();
+    const val = parseFloat(revenueValue) || 0;
+    updateSite.mutate(
+      { id: siteId, monthly_revenue: val } as any,
+      {
+        onSuccess: () => {
+          toast.success("Mensualité mise à jour");
+          setEditingRevenue(null);
+        },
+        onError: () => toast.error("Erreur"),
+      }
+    );
   };
 
   if (isLoading) {
@@ -90,12 +115,23 @@ const Sites = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sites.map((site) => {
             const siteArticles = articles.filter((a) => a.site_id === site.id && a.status === "published");
+            const scheduledArticles = articles.filter((a) => a.site_id === site.id && a.status === "scheduled");
+            const hasScheduled = scheduledArticles.length > 0;
             const lastPublished = siteArticles.length > 0
               ? siteArticles.sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0]?.published_at
               : null;
+            const revenue = Number((site as any).monthly_revenue) || 0;
 
             return (
-              <div key={site.id} className="bg-card border border-border rounded-lg p-5 transition-all hover:border-primary/30 group cursor-pointer" onClick={() => navigate(`/sites/${site.id}`)}>
+              <div
+                key={site.id}
+                className={`bg-card rounded-lg p-5 transition-all group cursor-pointer border-2 ${
+                  hasScheduled
+                    ? "border-primary/60 hover:border-primary"
+                    : "border-destructive/60 hover:border-destructive"
+                }`}
+                onClick={() => navigate(`/sites/${site.id}`)}
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold shrink-0" style={{ backgroundColor: (site.color ?? "#00e87a") + "22", color: site.color ?? "#00e87a" }}>
@@ -103,23 +139,55 @@ const Sites = () => {
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-display text-base font-semibold text-foreground">{site.name}</h3>
-                      <a href={site.url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline flex items-center gap-1">
+                      <a href={site.url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         {site.url.replace("https://", "")}
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(site.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleDelete(site.id, e)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
 
                 {site.description && <p className="text-xs text-muted-foreground mb-3">{site.description}</p>}
 
+                {/* Revenue */}
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-surface border border-border" onClick={(e) => e.stopPropagation()}>
+                  <DollarSign className="w-3.5 h-3.5 text-primary shrink-0" />
+                  {editingRevenue === site.id ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="number"
+                        value={revenueValue}
+                        onChange={(e) => setRevenueValue(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveRevenue(site.id, e)}
+                        autoFocus
+                        placeholder="0"
+                        className="flex-1 bg-transparent text-sm font-mono text-foreground focus:outline-none w-16"
+                      />
+                      <span className="text-xs text-muted-foreground">€/mois</span>
+                      <Button variant="emerald" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => saveRevenue(site.id, e)}>
+                        OK
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => startEditRevenue(site.id, revenue, e)}
+                      className="flex items-center gap-1.5 flex-1 text-left"
+                    >
+                      <span className="font-mono text-sm font-semibold text-foreground">
+                        {revenue > 0 ? `${revenue}€` : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">/mois</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-1.5 mb-3">
                   <span className="font-mono text-[10px] text-muted-foreground bg-surface px-2 py-1 rounded truncate">{site.id}</span>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(site.id); toast.success("UUID copié !"); }}
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(site.id); toast.success("UUID copié !"); }}
                     className="text-muted-foreground hover:text-primary transition-colors shrink-0"
                     title="Copier l'UUID"
                   >
@@ -128,7 +196,7 @@ const Sites = () => {
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-3">
-                  <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{siteArticles.length} articles</span>
+                  <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{siteArticles.length} publiés · {scheduledArticles.length} planifiés</span>
                   <span className="font-mono">
                     {lastPublished ? format(parseISO(lastPublished), "dd MMM", { locale: fr }) : "—"}
                   </span>
