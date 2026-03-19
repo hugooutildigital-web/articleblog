@@ -302,7 +302,7 @@ const NewArticle = () => {
             {
               site_id: selectedSite,
               title: finalTitle,
-              slug: slugify(finalTitle) + `-${Date.now()}`,
+              slug: slugify(finalTitle),
               mode: "auto",
               status: "scheduled",
               scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),

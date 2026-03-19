@@ -75,7 +75,7 @@ serve(async (req) => {
         if (nextDate) {
           // Generate a placeholder title indicating this needs AI regeneration
           const placeholderTitle = `[À générer] ${article.category || article.title}`;
-          const nextSlug = `${(article.category || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${nextDate.getTime()}`;
+          const nextSlug = `${(article.category || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
 
           const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
             site_id: article.site_id,
