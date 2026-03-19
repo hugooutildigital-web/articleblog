@@ -176,9 +176,28 @@ const NewArticle = () => {
         keywords: keywords ? keywords.split(",").map((k) => k.trim()) : null,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           toast.success("Article planifié !");
           navigate("/articles");
+
+          // Fire & forget image generation
+          fetch(GENERATE_IMAGE_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              articleId: data.id,
+              title: finalTitle,
+              siteName: selectedSiteData?.name || "",
+              siteNiche: selectedSiteData?.niche || "",
+            }),
+          }).then(() => {
+            toast.success("Image générée !");
+          }).catch(() => {
+            // silent fail - image is optional
+          });
         },
         onError: () => toast.error("Erreur lors de la création"),
       }
