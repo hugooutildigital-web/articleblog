@@ -510,41 +510,43 @@ const NewArticle = () => {
                   </span>
                 </div>
 
-                {mode === "autopilot" ? (
-                  /* Autopilot: frequency only */
+                {/* Shared frequency picker: "Tous les X jours/semaines/mois" */}
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Tous les</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={intervalValue}
+                      onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Unité</label>
                     <select
-                      value={planFrequency}
-                      onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
+                      value={intervalUnit}
+                      onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
                       className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      {FREQUENCY_OPTIONS.map((f) => (
-                        <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                      {INTERVAL_UNIT_OPTIONS.map((u) => (
+                        <option key={u} value={u}>{INTERVAL_UNIT_LABELS[u]}</option>
                       ))}
                     </select>
-                    <div className="text-xs text-primary font-mono mt-2">
-                      → {AUTOPILOT_TOPIC_COUNTS[planFrequency]} sujets seront générés pour le premier lot
-                    </div>
+                  </div>
+                </div>
+
+                {mode === "autopilot" ? (
+                  <div className="text-xs text-primary font-mono mt-2">
+                    → {frequencyLabel} · {autopilotTopicCount} sujets seront générés pour le premier lot
                   </div>
                 ) : (
-                  /* Auto (campaign): frequency + period */
+                  /* Campaign mode: also pick a period */
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
-                        <select
-                          value={planFrequency}
-                          onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
-                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          {FREQUENCY_OPTIONS.map((f) => (
-                            <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Pendant</label>
                         <input
                           type="number"
                           min={1}
@@ -569,10 +571,10 @@ const NewArticle = () => {
                     </div>
 
                     {(() => {
-                      const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+                      const previewCount = calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
                       return previewCount > 0 ? (
                         <div className="text-xs text-primary font-mono mt-2">
-                          → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                          → {frequencyLabel} · {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
                         </div>
                       ) : null;
                     })()}
