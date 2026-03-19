@@ -22,6 +22,15 @@ const SiteDashboard = () => {
   const deleteArticle = useDeleteArticle();
   const updateArticle = useUpdateArticle();
   const [previewArticle, setPreviewArticle] = useState<(typeof articles)[0] | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{
+    summary: string;
+    issues_count: number;
+    total_articles: number;
+    fixes_applied: number;
+    fixes_details: { article_title: string; issue: string; action: string; applied: boolean }[];
+  } | null>(null);
+  const queryClient = useQueryClient();
 
   const site = sites.find((s) => s.id === siteId);
   const siteArticles = articles.filter((a) => a.site_id === siteId);
