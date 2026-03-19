@@ -1,17 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
-import { format, parseISO, isPast, isFuture } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Clock,
+  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket,
   FileText, CheckCircle2, Timer, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import { toast } from "sonner";
-
-const getImageUrl = (article: { title: string; image_url: string | null }) =>
-  article.image_url || `/placeholder.svg`;
 
 const SiteDashboard = () => {
   const { siteId } = useParams<{ siteId: string }>();
