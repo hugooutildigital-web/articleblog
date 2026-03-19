@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2, X, Edit3, Check } from "lucide-react";
+import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2, X, Edit3, Check, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
