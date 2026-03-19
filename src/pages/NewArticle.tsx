@@ -15,7 +15,14 @@ import {
   type PeriodUnit,
 } from "@/lib/scheduling";
 
-type Mode = "auto" | "custom" | null;
+type Mode = "auto" | "custom" | "autopilot" | null;
+
+const AUTOPILOT_TOPIC_COUNTS: Record<Frequency, number> = {
+  daily: 7,
+  weekly: 4,
+  biweekly: 4,
+  monthly: 3,
+};
 
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
