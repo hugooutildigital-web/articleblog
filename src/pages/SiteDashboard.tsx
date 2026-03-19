@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,13 +6,14 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Eye,
-  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck,
+  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck, Zap, ZapOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import ArticlePreviewModal from "@/components/ArticlePreviewModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type TabView = "scheduled" | "published";
 
@@ -174,6 +175,51 @@ const SiteDashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Autopilot banner */}
+      {(() => {
+        const autopilotArticles = scheduled.filter((a) => a.mode === "autopilot");
+        const isAutopilotActive = autopilotArticles.length > 0;
+        if (!isAutopilotActive) return null;
+
+        const nextAutopilot = autopilotArticles.sort((a, b) =>
+          (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? "")
+        )[0];
+
+        return (
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-lg p-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Autopilote actif</p>
+              <p className="text-xs text-muted-foreground font-mono">
+                {nextAutopilot?.frequency || "—"} · Prochain article {nextAutopilot?.scheduled_at
+                  ? format(parseISO(nextAutopilot.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
+                  : "bientôt"}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 shrink-0"
+              onClick={async () => {
+                const ids = autopilotArticles.map((a) => a.id);
+                const { error } = await supabase.from("articles").delete().in("id", ids);
+                if (error) {
+                  toast.error("Erreur lors de la désactivation");
+                } else {
+                  queryClient.invalidateQueries({ queryKey: ["articles"] });
+                  toast.success(`Autopilote désactivé · ${ids.length} article${ids.length > 1 ? "s" : ""} en attente supprimé${ids.length > 1 ? "s" : ""}`);
+                }
+              }}
+            >
+              <ZapOff className="w-3.5 h-3.5" />
+              Désactiver
+            </Button>
+          </div>
+        );
+      })()}
 
       {/* Verify Button & Results */}
       {scheduled.length > 0 && (
