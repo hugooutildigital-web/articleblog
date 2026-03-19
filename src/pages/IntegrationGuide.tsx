@@ -175,16 +175,24 @@ const IntegrationGuide = () => {
 
           {selectedSite && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPromptVisible(!promptVisible)}
+                className="flex items-center gap-2 group"
+              >
                 <Rocket className="w-4 h-4 text-primary" />
                 <h2 className="font-display text-base font-semibold text-foreground">
                   Prompt de configuration pour {selectedSite.name}
                 </h2>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Copiez ce prompt et collez-le dans le chat Lovable du projet <strong>{selectedSite.name}</strong>. Il configure la connexion à la base de données, la mise en page blog et les corrections de bugs.
-              </p>
-              <CopyBlock prompt={getSetupPrompt(selectedSite.id, selectedSite.name)} />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${promptVisible ? "rotate-180" : ""}`} />
+              </button>
+              {promptVisible && (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Copiez ce prompt et collez-le dans le chat Lovable du projet <strong>{selectedSite.name}</strong>. Il configure la connexion à la base de données, la mise en page blog et les corrections de bugs.
+                  </p>
+                  <CopyBlock prompt={getSetupPrompt(selectedSite.id, selectedSite.name)} />
+                </>
+              )}
             </div>
           )}
         </>
