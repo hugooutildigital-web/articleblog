@@ -314,7 +314,7 @@ const NewArticle = () => {
               mode: mode || "auto",
               status: "scheduled",
               scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),
-              frequency: planFrequency,
+              frequency: frequencyLabel,
               category: category || null,
               content: content.content || null,
               excerpt: content.excerpt || null,
