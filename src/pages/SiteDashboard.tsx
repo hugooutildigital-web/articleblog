@@ -144,18 +144,7 @@ const SiteDashboard = () => {
                   className="bg-card border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all group"
                 >
                   <div className="flex">
-                    {/* Image */}
-                    <div className="w-[200px] shrink-0 bg-muted">
-                      <img
-                        src={imageUrl}
-                        alt={article.title}
-                        className="w-full h-full object-cover min-h-[180px]"
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/placeholder.svg";
-                        }}
-                      />
-                    </div>
+                    <SiteArticleThumbnail title={article.title} imageUrl={article.image_url} />
 
                     {/* Content */}
                     <div className="flex-1 p-4 flex flex-col min-w-0">
