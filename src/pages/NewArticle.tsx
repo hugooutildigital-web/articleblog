@@ -180,7 +180,7 @@ const NewArticle = () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      const targetCount = mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
+      const targetCount = calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
       const resp = await fetch(GENERATE_TOPICS_URL, {
         method: "POST",
         headers: {
