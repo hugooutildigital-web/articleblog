@@ -539,7 +539,7 @@ const NewArticle = () => {
 
                 {mode === "autopilot" ? (
                   <div className="text-xs text-primary font-mono mt-2">
-                    → {frequencyLabel} · {autopilotTopicCount} sujets seront générés pour le premier lot
+                    → {frequencyLabel} · {autopilotTopicCount} sujets seront générés
                   </div>
                 ) : (
                   /* Campaign mode: also pick a period */
