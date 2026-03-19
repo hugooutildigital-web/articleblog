@@ -1,17 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
-import { format, parseISO, isPast, isFuture } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Clock,
+  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket,
   FileText, CheckCircle2, Timer, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import { toast } from "sonner";
-
-const getImageUrl = (article: { title: string; image_url: string | null }) =>
-  article.image_url || `/placeholder.svg`;
 
 const SiteDashboard = () => {
   const { siteId } = useParams<{ siteId: string }>();
@@ -136,7 +134,6 @@ const SiteDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(upcoming.length > 0 ? [...upcoming, ...published] : siteArticles).map((article) => {
-              const imageUrl = getImageUrl(article);
               const date = article.published_at || article.scheduled_at || article.created_at;
               const isPublished = article.status === "published";
               const isScheduled = article.status === "scheduled";
@@ -147,18 +144,7 @@ const SiteDashboard = () => {
                   className="bg-card border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all group"
                 >
                   <div className="flex">
-                    {/* Image */}
-                    <div className="w-[200px] shrink-0 bg-muted">
-                      <img
-                        src={imageUrl}
-                        alt={article.title}
-                        className="w-full h-full object-cover min-h-[180px]"
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/placeholder.svg";
-                        }}
-                      />
-                    </div>
+                    <SiteArticleThumbnail title={article.title} imageUrl={article.image_url} />
 
                     {/* Content */}
                     <div className="flex-1 p-4 flex flex-col min-w-0">
