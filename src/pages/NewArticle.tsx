@@ -819,7 +819,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 4 Auto: Batch generation */}
-      {step === 4 && isBatchMode && (
+      {step === 4 && mode === "auto" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {batchGenerating ? "Rédaction en cours..." : batchCompleted.length > 0 ? "Génération terminée !" : "Lancer la rédaction"}
