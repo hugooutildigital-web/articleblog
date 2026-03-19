@@ -122,8 +122,11 @@ const IntegrationGuide = () => {
           <div className="relative">
             <div className="flex gap-2">
               <button
-                onClick={() => setSelectorOpen(!selectorOpen)}
-                className="flex-1 flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
+                onClick={() => {
+                  if (sites.length > 1) setSelectorOpen(!selectorOpen);
+                  else setPromptVisible(!promptVisible);
+                }}
+                className="flex-1 flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -140,7 +143,7 @@ const IntegrationGuide = () => {
                     <p className="font-mono text-xs text-muted-foreground">{selectedSite?.url}</p>
                   </div>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${sites.length > 1 ? (selectorOpen ? "rotate-180" : "") : (promptVisible ? "rotate-180" : "")}`} />
               </button>
             </div>
 
