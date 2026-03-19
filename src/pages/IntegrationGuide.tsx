@@ -88,6 +88,7 @@ const IntegrationGuide = () => {
   const { data: sites = [], isLoading } = useSites();
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [promptVisible, setPromptVisible] = useState(true);
 
   const selectedSite = sites.find((s) => s.id === selectedSiteId) ?? sites[0] ?? null;
 
