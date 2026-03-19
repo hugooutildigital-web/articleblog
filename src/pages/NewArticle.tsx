@@ -161,23 +161,19 @@ const NewArticle = () => {
 
   const validatedTopics = topics.filter((t) => t.checked);
 
-  const isBatchMode = mode === "auto" || mode === "autopilot";
+  const isBatchMode = mode === "auto";
 
-  const autopilotTopicCount = mode === "autopilot" ? getAutopilotTopicCount(intervalValue, intervalUnit) : 0;
   const frequencyLabel = formatInterval(intervalValue, intervalUnit);
 
-  // Calculate scheduled dates based on validated topics count
+  // Calculate scheduled dates based on validated topics count (campaign mode only)
   const scheduledDates = useMemo(() => {
-    if (!isBatchMode) return [];
+    if (mode !== "auto") return [];
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
     if (validatedTopics.length > 0) {
       return generateDatesForCount(validatedTopics.length, intervalValue, intervalUnit, startDate);
     }
-    if (mode === "autopilot") {
-      return generateDatesForCount(autopilotTopicCount, intervalValue, intervalUnit, startDate);
-    }
     return calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod, startDate);
-  }, [mode, isBatchMode, intervalValue, intervalUnit, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
+  }, [mode, intervalValue, intervalUnit, planCount, planPeriod, scheduledDate, validatedTopics.length]);
 
   // Step 3 auto: fetch topics
   const handleGenerateTopics = async () => {
