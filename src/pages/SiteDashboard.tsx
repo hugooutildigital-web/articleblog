@@ -14,7 +14,10 @@ import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import ArticlePreviewModal from "@/components/ArticlePreviewModal";
 import { toast } from "sonner";
 
+type TabView = "scheduled" | "published";
+
 const SiteDashboard = () => {
+  const [activeTab, setActiveTab] = useState<TabView>("scheduled");
   const { siteId } = useParams<{ siteId: string }>();
   const navigate = useNavigate();
   const { data: sites = [], isLoading: loadingSites } = useSites();
