@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Eye,
-  FileText, CheckCircle2, Timer, Globe,
+  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
