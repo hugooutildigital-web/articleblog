@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Eye,
-  FileText, CheckCircle2, Timer, Globe,
+  FileText, CheckCircle2, Timer, Globe, ShieldCheck, Loader2, AlertTriangle, CircleCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,15 @@ const SiteDashboard = () => {
   const deleteArticle = useDeleteArticle();
   const updateArticle = useUpdateArticle();
   const [previewArticle, setPreviewArticle] = useState<(typeof articles)[0] | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{
+    summary: string;
+    issues_count: number;
+    total_articles: number;
+    fixes_applied: number;
+    fixes_details: { article_title: string; issue: string; action: string; applied: boolean }[];
+  } | null>(null);
+  const queryClient = useQueryClient();
 
   const site = sites.find((s) => s.id === siteId);
   const siteArticles = articles.filter((a) => a.site_id === siteId);
@@ -56,6 +66,44 @@ const SiteDashboard = () => {
         onError: () => toast.error("Erreur"),
       }
     );
+  };
+
+  const handleVerifyAll = async () => {
+    if (!site) return;
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-articles`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          siteId: site.id,
+          siteName: site.name,
+          siteNiche: site.niche || "",
+          siteDescription: site.description || "",
+          siteUrl: site.url,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Erreur réseau" }));
+        throw new Error(err.error || `Erreur ${resp.status}`);
+      }
+      const result = await resp.json();
+      setVerifyResult(result);
+      if (result.fixes_applied > 0) {
+        queryClient.invalidateQueries({ queryKey: ["articles"] });
+        toast.success(`${result.fixes_applied} correction${result.fixes_applied > 1 ? "s" : ""} appliquée${result.fixes_applied > 1 ? "s" : ""}`);
+      } else if (result.issues_count === 0) {
+        toast.success("Tous les articles sont cohérents !");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la vérification");
+    } finally {
+      setVerifying(false);
+    }
   };
 
   if (loadingSites || loadingArticles) {
@@ -123,6 +171,75 @@ const SiteDashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Verify Button & Results */}
+      {scheduled.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="emerald"
+              className="gap-2"
+              onClick={handleVerifyAll}
+              disabled={verifying}
+            >
+              {verifying ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Vérification en cours...</>
+              ) : (
+                <><ShieldCheck className="w-4 h-4" /> Vérifier tout</>
+              )}
+            </Button>
+            {verifying && (
+              <span className="text-xs text-muted-foreground font-mono animate-pulse">
+                L'IA analyse la cohérence de {scheduled.length} articles planifiés...
+              </span>
+            )}
+          </div>
+
+          {verifyResult && (
+            <div className={`border rounded-lg p-5 space-y-4 ${
+              verifyResult.issues_count === 0
+                ? "border-primary/30 bg-primary/5"
+                : "border-amber-400/30 bg-amber-400/5"
+            }`}>
+              <div className="flex items-start gap-3">
+                {verifyResult.issues_count === 0 ? (
+                  <CircleCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{verifyResult.summary}</p>
+                  <p className="text-xs text-muted-foreground font-mono mt-1">
+                    {verifyResult.total_articles} articles analysés · {verifyResult.issues_count} problème{verifyResult.issues_count !== 1 ? "s" : ""} détecté{verifyResult.issues_count !== 1 ? "s" : ""} · {verifyResult.fixes_applied} correction{verifyResult.fixes_applied !== 1 ? "s" : ""} appliquée{verifyResult.fixes_applied !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              </div>
+
+              {verifyResult.fixes_details && verifyResult.fixes_details.length > 0 && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground font-mono">Détail des corrections :</p>
+                  {verifyResult.fixes_details.map((fix, i) => (
+                    <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-md bg-card">
+                      {fix.applied ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">{fix.article_title}</p>
+                        <p className="text-[10px] text-muted-foreground">{fix.issue}</p>
+                        <Badge variant="outline" className="text-[9px] mt-1 px-1.5 py-0">
+                          {fix.action === "regenerate" ? "Régénéré" : fix.action === "replace_content" ? "Contenu corrigé" : fix.action === "replace_title" ? "Titre corrigé" : "Extrait corrigé"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Article Cards */}
       <div>
