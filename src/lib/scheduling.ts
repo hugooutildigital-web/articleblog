@@ -1,15 +1,16 @@
 import { addDays, addWeeks, addMonths, addYears, format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-export type Frequency = "daily" | "weekly" | "biweekly" | "monthly";
+export type IntervalUnit = "days" | "weeks" | "months";
 export type PeriodUnit = "day" | "week" | "month" | "year";
 
-const FREQUENCY_LABELS: Record<Frequency, string> = {
-  daily: "Quotidien",
-  weekly: "Hebdomadaire",
-  biweekly: "Bimensuel",
-  monthly: "Mensuel",
+const INTERVAL_UNIT_LABELS: Record<IntervalUnit, string> = {
+  days: "jour(s)",
+  weeks: "semaine(s)",
+  months: "mois",
 };
+
+const INTERVAL_UNIT_OPTIONS: IntervalUnit[] = ["days", "weeks", "months"];
 
 const PERIOD_LABELS: Record<PeriodUnit, string> = {
   day: "Jour(s)",
@@ -18,7 +19,6 @@ const PERIOD_LABELS: Record<PeriodUnit, string> = {
   year: "An(s)",
 };
 
-const FREQUENCY_OPTIONS: Frequency[] = ["daily", "weekly", "biweekly", "monthly"];
 const PERIOD_OPTIONS: PeriodUnit[] = ["day", "week", "month", "year"];
 
 /**
@@ -34,54 +34,83 @@ function periodToDays(count: number, unit: PeriodUnit): number {
 }
 
 /**
- * Interval in days between articles for a given frequency.
+ * Interval in days for a custom interval.
  */
-function frequencyIntervalDays(freq: Frequency): number {
-  switch (freq) {
-    case "daily": return 1;
-    case "weekly": return 7;
-    case "biweekly": return 14;
-    case "monthly": return 30;
+export function intervalToDays(value: number, unit: IntervalUnit): number {
+  switch (unit) {
+    case "days": return value;
+    case "weeks": return value * 7;
+    case "months": return value * 30;
   }
+}
+
+/**
+ * Add interval to a date.
+ */
+function addInterval(date: Date, value: number, unit: IntervalUnit): Date {
+  switch (unit) {
+    case "days": return addDays(date, value);
+    case "weeks": return addWeeks(date, value);
+    case "months": return addMonths(date, value);
+  }
+}
+
+/**
+ * Format interval as human-readable French string.
+ */
+export function formatInterval(value: number, unit: IntervalUnit): string {
+  if (value === 1) {
+    switch (unit) {
+      case "days": return "Tous les jours";
+      case "weeks": return "Toutes les semaines";
+      case "months": return "Tous les mois";
+    }
+  }
+  return `Tous les ${value} ${INTERVAL_UNIT_LABELS[unit]}`;
 }
 
 /**
  * Calculate the list of scheduled dates for the batch.
  */
 export function calculateScheduledDates(
-  frequency: Frequency,
-  count: number,
+  intervalValue: number,
+  intervalUnit: IntervalUnit,
+  periodCount: number,
   periodUnit: PeriodUnit,
   startDate: Date = new Date()
 ): Date[] {
-  if (count <= 0) return [];
+  if (periodCount <= 0 || intervalValue <= 0) return [];
 
-  const totalDays = periodToDays(count, periodUnit);
-  const intervalDays = frequencyIntervalDays(frequency);
-  const articleCount = Math.max(1, Math.floor(totalDays / intervalDays));
+  const totalDays = periodToDays(periodCount, periodUnit);
+  const gapDays = intervalToDays(intervalValue, intervalUnit);
+  const articleCount = Math.max(1, Math.floor(totalDays / gapDays));
 
   const dates: Date[] = [];
   let current = startDate;
 
   for (let i = 0; i < articleCount; i++) {
     dates.push(new Date(current));
-    // Add interval based on frequency for more accurate date math
-    switch (frequency) {
-      case "daily":
-        current = addDays(current, 1);
-        break;
-      case "weekly":
-        current = addWeeks(current, 1);
-        break;
-      case "biweekly":
-        current = addWeeks(current, 2);
-        break;
-      case "monthly":
-        current = addMonths(current, 1);
-        break;
-    }
+    current = addInterval(current, intervalValue, intervalUnit);
   }
 
+  return dates;
+}
+
+/**
+ * Generate N dates spaced by interval (for autopilot).
+ */
+export function generateDatesForCount(
+  count: number,
+  intervalValue: number,
+  intervalUnit: IntervalUnit,
+  startDate: Date = new Date()
+): Date[] {
+  const dates: Date[] = [];
+  let current = startDate;
+  for (let i = 0; i < count; i++) {
+    dates.push(new Date(current));
+    current = addInterval(current, intervalValue, intervalUnit);
+  }
   return dates;
 }
 
@@ -89,4 +118,4 @@ export function formatDateFr(date: Date): string {
   return format(date, "dd MMM yyyy · HH:mm", { locale: fr });
 }
 
-export { FREQUENCY_LABELS, PERIOD_LABELS, FREQUENCY_OPTIONS, PERIOD_OPTIONS };
+export { INTERVAL_UNIT_LABELS, INTERVAL_UNIT_OPTIONS, PERIOD_LABELS, PERIOD_OPTIONS };

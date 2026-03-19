@@ -6,23 +6,28 @@ import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
 import {
   calculateScheduledDates,
+  generateDatesForCount,
   formatDateFr,
-  FREQUENCY_LABELS,
+  formatInterval,
+  intervalToDays,
+  INTERVAL_UNIT_LABELS,
+  INTERVAL_UNIT_OPTIONS,
   PERIOD_LABELS,
-  FREQUENCY_OPTIONS,
   PERIOD_OPTIONS,
-  type Frequency,
+  type IntervalUnit,
   type PeriodUnit,
 } from "@/lib/scheduling";
 
 type Mode = "auto" | "custom" | "autopilot" | null;
 
-const AUTOPILOT_TOPIC_COUNTS: Record<Frequency, number> = {
-  daily: 7,
-  weekly: 4,
-  biweekly: 4,
-  monthly: 3,
-};
+/** For autopilot, compute a reasonable first-batch count based on interval */
+function getAutopilotTopicCount(intervalValue: number, intervalUnit: IntervalUnit): number {
+  const days = intervalToDays(intervalValue, intervalUnit);
+  if (days <= 1) return 7;
+  if (days <= 7) return 5;
+  if (days <= 14) return 4;
+  return 3;
+}
 
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -138,8 +143,9 @@ const NewArticle = () => {
   const [tone, setTone] = useState("");
   const [keywords, setKeywords] = useState("");
 
-  // Batch planning (auto mode)
-  const [planFrequency, setPlanFrequency] = useState<Frequency>("weekly");
+  // Batch planning
+  const [intervalValue, setIntervalValue] = useState(1);
+  const [intervalUnit, setIntervalUnit] = useState<IntervalUnit>("weeks");
   const [planCount, setPlanCount] = useState(3);
   const [planPeriod, setPlanPeriod] = useState<PeriodUnit>("month");
 
@@ -166,34 +172,28 @@ const NewArticle = () => {
 
   const isBatchMode = mode === "auto" || mode === "autopilot";
 
-  // For autopilot, compute topic count from frequency defaults
-  const autopilotTopicCount = mode === "autopilot" ? AUTOPILOT_TOPIC_COUNTS[planFrequency] : 0;
+  const autopilotTopicCount = mode === "autopilot" ? getAutopilotTopicCount(intervalValue, intervalUnit) : 0;
+  const frequencyLabel = formatInterval(intervalValue, intervalUnit);
 
   // Calculate scheduled dates based on validated topics count
   const scheduledDates = useMemo(() => {
     if (!isBatchMode) return [];
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
-    const topicCount = validatedTopics.length || (mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(planFrequency, planCount, planPeriod).length);
-    const dates: Date[] = [];
-    let current = startDate;
-    for (let i = 0; i < topicCount; i++) {
-      dates.push(new Date(current));
-      switch (planFrequency) {
-        case "daily": current = new Date(current.getTime() + 86400000); break;
-        case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
-        case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
-        case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
-      }
+    if (validatedTopics.length > 0) {
+      return generateDatesForCount(validatedTopics.length, intervalValue, intervalUnit, startDate);
     }
-    return dates;
-  }, [mode, isBatchMode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
+    if (mode === "autopilot") {
+      return generateDatesForCount(autopilotTopicCount, intervalValue, intervalUnit, startDate);
+    }
+    return calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod, startDate);
+  }, [mode, isBatchMode, intervalValue, intervalUnit, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
 
   // Step 3 auto: fetch topics
   const handleGenerateTopics = async () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      const targetCount = mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+      const targetCount = mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
       const resp = await fetch(GENERATE_TOPICS_URL, {
         method: "POST",
         headers: {
@@ -314,7 +314,7 @@ const NewArticle = () => {
               mode: mode || "auto",
               status: "scheduled",
               scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),
-              frequency: planFrequency,
+              frequency: frequencyLabel,
               category: category || null,
               content: content.content || null,
               excerpt: content.excerpt || null,
@@ -510,41 +510,43 @@ const NewArticle = () => {
                   </span>
                 </div>
 
-                {mode === "autopilot" ? (
-                  /* Autopilot: frequency only */
+                {/* Shared frequency picker: "Tous les X jours/semaines/mois" */}
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Tous les</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={intervalValue}
+                      onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Unité</label>
                     <select
-                      value={planFrequency}
-                      onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
+                      value={intervalUnit}
+                      onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
                       className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      {FREQUENCY_OPTIONS.map((f) => (
-                        <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                      {INTERVAL_UNIT_OPTIONS.map((u) => (
+                        <option key={u} value={u}>{INTERVAL_UNIT_LABELS[u]}</option>
                       ))}
                     </select>
-                    <div className="text-xs text-primary font-mono mt-2">
-                      → {AUTOPILOT_TOPIC_COUNTS[planFrequency]} sujets seront générés pour le premier lot
-                    </div>
+                  </div>
+                </div>
+
+                {mode === "autopilot" ? (
+                  <div className="text-xs text-primary font-mono mt-2">
+                    → {frequencyLabel} · {autopilotTopicCount} sujets seront générés pour le premier lot
                   </div>
                 ) : (
-                  /* Auto (campaign): frequency + period */
+                  /* Campaign mode: also pick a period */
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
-                        <select
-                          value={planFrequency}
-                          onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
-                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          {FREQUENCY_OPTIONS.map((f) => (
-                            <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Pendant</label>
                         <input
                           type="number"
                           min={1}
@@ -569,10 +571,10 @@ const NewArticle = () => {
                     </div>
 
                     {(() => {
-                      const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+                      const previewCount = calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
                       return previewCount > 0 ? (
                         <div className="text-xs text-primary font-mono mt-2">
-                          → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                          → {frequencyLabel} · {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
                         </div>
                       ) : null;
                     })()}
