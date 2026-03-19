@@ -276,7 +276,7 @@ const SiteDashboard = () => {
           );
           return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(upcoming.length > 0 ? [...upcoming, ...published] : siteArticles).map((article) => {
+            {displayArticles.map((article) => {
               const articleDate = article.published_at || article.scheduled_at || article.created_at;
               const isPublished = article.status === "published";
               const isScheduled = article.status === "scheduled";
@@ -289,7 +289,6 @@ const SiteDashboard = () => {
                   <div className="flex">
                     <SiteArticleThumbnail title={article.title} imageUrl={article.image_url} />
 
-                    {/* Content */}
                     <div className="flex-1 p-4 flex flex-col min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         {article.category && (
@@ -375,7 +374,8 @@ const SiteDashboard = () => {
               );
             })}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Preview Modal */}
