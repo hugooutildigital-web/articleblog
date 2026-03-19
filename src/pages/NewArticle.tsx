@@ -20,15 +20,6 @@ import {
 
 type Mode = "auto" | "custom" | "autopilot" | null;
 
-/** For autopilot, compute a reasonable first-batch count based on interval */
-function getAutopilotTopicCount(intervalValue: number, intervalUnit: IntervalUnit): number {
-  const days = intervalToDays(intervalValue, intervalUnit);
-  if (days <= 1) return 7;
-  if (days <= 7) return 5;
-  if (days <= 14) return 4;
-  return 3;
-}
-
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
