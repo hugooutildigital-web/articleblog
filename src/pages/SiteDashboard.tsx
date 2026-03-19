@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSites, useAllArticles, useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket,
+  ArrowLeft, Calendar, ExternalLink, Trash2, Rocket, Eye,
   FileText, CheckCircle2, Timer, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
+import ArticlePreviewModal from "@/components/ArticlePreviewModal";
 import { toast } from "sonner";
 
 const SiteDashboard = () => {
@@ -18,6 +20,7 @@ const SiteDashboard = () => {
   const { data: articles = [], isLoading: loadingArticles } = useAllArticles();
   const deleteArticle = useDeleteArticle();
   const updateArticle = useUpdateArticle();
+  const [previewArticle, setPreviewArticle] = useState<(typeof articles)[0] | null>(null);
 
   const site = sites.find((s) => s.id === siteId);
   const siteArticles = articles.filter((a) => a.site_id === siteId);
@@ -167,7 +170,10 @@ const SiteDashboard = () => {
                         </Badge>
                       </div>
 
-                      <h3 className="font-display text-sm font-semibold text-foreground line-clamp-2 mb-1">
+                      <h3
+                        className="font-display text-sm font-semibold text-foreground line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => setPreviewArticle(article)}
+                      >
                         {article.title}
                       </h3>
 
@@ -185,6 +191,15 @@ const SiteDashboard = () => {
                       </div>
 
                       <div className="flex items-center gap-2 mt-auto">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1 text-primary"
+                          onClick={() => setPreviewArticle(article)}
+                        >
+                          <Eye className="w-3 h-3" />
+                          Lire
+                        </Button>
                         {isScheduled && (
                           <Button
                             variant="emerald"
@@ -222,9 +237,18 @@ const SiteDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      {previewArticle && (
+        <ArticlePreviewModal
+          article={previewArticle}
+          site={site}
+          open={!!previewArticle}
+          onClose={() => setPreviewArticle(null)}
+        />
+      )}
     </div>
   );
 };
 
 export default SiteDashboard;
-
