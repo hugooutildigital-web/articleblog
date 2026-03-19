@@ -311,7 +311,7 @@ const NewArticle = () => {
               site_id: selectedSite,
               title: finalTitle,
               slug: slugify(finalTitle),
-              mode: "auto",
+              mode: mode || "auto",
               status: "scheduled",
               scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),
               frequency: planFrequency,
