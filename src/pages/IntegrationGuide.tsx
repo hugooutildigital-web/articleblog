@@ -8,7 +8,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const getSetupPrompt = (siteId: string, siteName: string) =>
-  `Connecte ce projet à la base de données Supabase partagée de BlogFlow et configure le blog complet.
+  `Connecte ce projet à la base de données Supabase partagée de SEO Sans Lesbienne et configure le blog complet.
 
 === 1. CONNEXION SUPABASE ===
 
