@@ -161,7 +161,7 @@ serve(async (req) => {
                       .toLowerCase()
                       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                       .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/(^-|-$)/g, "") + `-${nextDate.getTime()}`;
+                      .replace(/(^-|-$)/g, "");
                   }
 
                   if (Object.keys(genUpdate).length > 0) {
