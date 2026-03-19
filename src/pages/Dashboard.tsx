@@ -1,4 +1,4 @@
-import { FileText, CalendarCheck, Clock, Globe, Plus } from "lucide-react";
+import { FileText, CalendarCheck, Clock, Globe, Plus, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import TimelineStrip from "@/components/TimelineStrip";
@@ -15,6 +15,8 @@ const Dashboard = () => {
   const scheduled = articles.filter((a) => a.status === "scheduled");
   const drafts = articles.filter((a) => a.status === "draft");
   const recent = articles.slice(0, 3);
+
+  const mrr = sites.reduce((sum, s) => sum + (Number((s as any).monthly_revenue) || 0), 0);
 
   if (loadingArticles || loadingSites) {
     return (
@@ -37,8 +39,9 @@ const Dashboard = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Articles publiés" value={published.length} icon={FileText} accent />
+      <div className="grid grid-cols-5 gap-4">
+        <StatCard label="MRR" value={`${mrr.toFixed(0)}€`} icon={DollarSign} accent />
+        <StatCard label="Articles publiés" value={published.length} icon={FileText} />
         <StatCard label="Planifiés" value={scheduled.length} icon={CalendarCheck} />
         <StatCard label="Brouillons" value={drafts.length} icon={Clock} />
         <StatCard label="Sites connectés" value={sites.length} icon={Globe} />

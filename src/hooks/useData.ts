@@ -31,6 +31,18 @@ export const useCreateSite = () => {
   });
 };
 
+export const useUpdateSite = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Site>) => {
+      const { data, error } = await supabase.from("sites").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sites"] }),
+  });
+};
+
 export const useDeleteSite = () => {
   const qc = useQueryClient();
   return useMutation({

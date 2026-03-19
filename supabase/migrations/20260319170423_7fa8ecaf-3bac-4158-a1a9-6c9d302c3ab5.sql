@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ADD COLUMN monthly_revenue numeric DEFAULT 0;
