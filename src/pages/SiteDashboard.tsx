@@ -68,6 +68,44 @@ const SiteDashboard = () => {
     );
   };
 
+  const handleVerifyAll = async () => {
+    if (!site) return;
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-articles`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          siteId: site.id,
+          siteName: site.name,
+          siteNiche: site.niche || "",
+          siteDescription: site.description || "",
+          siteUrl: site.url,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Erreur réseau" }));
+        throw new Error(err.error || `Erreur ${resp.status}`);
+      }
+      const result = await resp.json();
+      setVerifyResult(result);
+      if (result.fixes_applied > 0) {
+        queryClient.invalidateQueries({ queryKey: ["articles"] });
+        toast.success(`${result.fixes_applied} correction${result.fixes_applied > 1 ? "s" : ""} appliquée${result.fixes_applied > 1 ? "s" : ""}`);
+      } else if (result.issues_count === 0) {
+        toast.success("Tous les articles sont cohérents !");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la vérification");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   if (loadingSites || loadingArticles) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[50vh]">
