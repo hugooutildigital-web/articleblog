@@ -9,7 +9,6 @@ import {
   generateDatesForCount,
   formatDateFr,
   formatInterval,
-  intervalToDays,
   INTERVAL_UNIT_LABELS,
   INTERVAL_UNIT_OPTIONS,
   PERIOD_LABELS,
@@ -19,15 +18,6 @@ import {
 } from "@/lib/scheduling";
 
 type Mode = "auto" | "custom" | "autopilot" | null;
-
-/** For autopilot, compute a reasonable first-batch count based on interval */
-function getAutopilotTopicCount(intervalValue: number, intervalUnit: IntervalUnit): number {
-  const days = intervalToDays(intervalValue, intervalUnit);
-  if (days <= 1) return 7;
-  if (days <= 7) return 5;
-  if (days <= 14) return 4;
-  return 3;
-}
 
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -170,30 +160,26 @@ const NewArticle = () => {
 
   const validatedTopics = topics.filter((t) => t.checked);
 
-  const isBatchMode = mode === "auto" || mode === "autopilot";
+  const isBatchMode = mode === "auto";
 
-  const autopilotTopicCount = mode === "autopilot" ? getAutopilotTopicCount(intervalValue, intervalUnit) : 0;
   const frequencyLabel = formatInterval(intervalValue, intervalUnit);
 
-  // Calculate scheduled dates based on validated topics count
+  // Calculate scheduled dates based on validated topics count (campaign mode only)
   const scheduledDates = useMemo(() => {
-    if (!isBatchMode) return [];
+    if (mode !== "auto") return [];
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
     if (validatedTopics.length > 0) {
       return generateDatesForCount(validatedTopics.length, intervalValue, intervalUnit, startDate);
     }
-    if (mode === "autopilot") {
-      return generateDatesForCount(autopilotTopicCount, intervalValue, intervalUnit, startDate);
-    }
     return calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod, startDate);
-  }, [mode, isBatchMode, intervalValue, intervalUnit, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
+  }, [mode, intervalValue, intervalUnit, planCount, planPeriod, scheduledDate, validatedTopics.length]);
 
   // Step 3 auto: fetch topics
   const handleGenerateTopics = async () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      const targetCount = mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
+      const targetCount = calculateScheduledDates(intervalValue, intervalUnit, planCount, planPeriod).length;
       const resp = await fetch(GENERATE_TOPICS_URL, {
         method: "POST",
         headers: {
@@ -394,9 +380,53 @@ const NewArticle = () => {
     );
   };
 
+  // Autopilot: create a single placeholder article and activate
+  const [autopilotCreating, setAutopilotCreating] = useState(false);
+
+  const handleActivateAutopilot = async () => {
+    if (!selectedSite) return toast.error("Sélectionnez un site");
+    setAutopilotCreating(true);
+    try {
+      const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
+      await new Promise<void>((resolve, reject) => {
+        createArticle.mutate(
+          {
+            site_id: selectedSite,
+            title: `[Autopilot] Article à générer`,
+            slug: `autopilot-${Date.now()}`,
+            mode: "autopilot",
+            status: "scheduled",
+            scheduled_at: startDate.toISOString(),
+            frequency: frequencyLabel,
+            category: category || null,
+            tone: tone || null,
+            keywords: keywords ? keywords.split(",").map((k) => k.trim()) : null,
+            instructions: instructions || null,
+          },
+          {
+            onSuccess: () => {
+              toast.success("Autopilote activé ! Le premier article sera généré automatiquement.");
+              resolve();
+              navigate("/articles");
+            },
+            onError: (err) => reject(err),
+          }
+        );
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'activation");
+    } finally {
+      setAutopilotCreating(false);
+    }
+  };
+
   const goToStep3 = () => {
+    if (mode === "autopilot") {
+      setStep(3); // autopilot confirmation
+      return;
+    }
     setStep(3);
-    if (isBatchMode) {
+    if (mode === "auto") {
       handleGenerateTopics();
     } else if (mode === "custom" && !generatedRaw) {
       handleGenerateSingle();
@@ -408,7 +438,7 @@ const NewArticle = () => {
     setStep(4);
   };
 
-  const totalSteps = isBatchMode ? 4 : 3;
+  const totalSteps = mode === "auto" ? 4 : 3;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
@@ -500,8 +530,8 @@ const NewArticle = () => {
               <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: SEO, Design, Tech..." className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
 
-            {/* Batch planning: auto or autopilot */}
-            {isBatchMode && (
+            {/* Frequency picker for auto + autopilot */}
+            {(mode === "auto" || mode === "autopilot") && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -510,7 +540,7 @@ const NewArticle = () => {
                   </span>
                 </div>
 
-                {/* Inline frequency: "Publier un article tous les [X] [jours ▾]" */}
+                {/* Inline frequency */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">Publier un article tous les</span>
                   <input
@@ -532,12 +562,7 @@ const NewArticle = () => {
                   </select>
                 </div>
 
-                {mode === "autopilot" ? (
-                  <div className="text-xs text-primary/70 font-mono">
-                    → {autopilotTopicCount} articles seront générés pour démarrer
-                  </div>
-                ) : (
-                  /* Campaign mode: also pick a period */
+                {mode === "auto" && (
                   <>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
@@ -578,15 +603,15 @@ const NewArticle = () => {
               </div>
             )}
 
-            {/* Date for custom mode or start date for auto */}
-            <div className={isBatchMode ? "" : "grid grid-cols-2 gap-4"}>
+            {/* Date for custom mode or start date for auto/autopilot */}
+            <div className={mode === "auto" || mode === "autopilot" ? "" : "grid grid-cols-2 gap-4"}>
               <div>
                 <label className="text-xs text-muted-foreground font-mono mb-1.5 block">
-                  {isBatchMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
+                  {mode === "auto" || mode === "autopilot" ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
                 </label>
                 <input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-              {!isBatchMode && (
+              {mode === "custom" && (
                 <div>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                   <select value="once" disabled className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
@@ -600,8 +625,10 @@ const NewArticle = () => {
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
-              {isBatchMode ? (
+              {mode === "auto" ? (
                 <><Sparkles className="w-4 h-4" /> Générer les sujets</>
+              ) : mode === "autopilot" ? (
+                <><Zap className="w-4 h-4" /> Activer l'autopilote</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> Générer l'article</>
               )}
@@ -610,8 +637,81 @@ const NewArticle = () => {
         </div>
       )}
 
+      {/* Step 3 Autopilot: Confirmation */}
+      {step === 3 && mode === "autopilot" && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-semibold text-foreground">Confirmer l'autopilote</h2>
+
+          <div className="bg-card border border-border rounded-lg p-6 space-y-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Zap className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Mode autopilote continu</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{selectedSiteData?.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Fréquence</span>
+                <span className="text-foreground font-mono">{frequencyLabel}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Premier article</span>
+                <span className="text-foreground font-mono">
+                  {scheduledDate ? formatDateFr(new Date(scheduledDate)) : "Dès maintenant"}
+                </span>
+              </div>
+              {category && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Catégorie</span>
+                  <span className="text-foreground font-mono">{category}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+              <p className="text-xs font-semibold text-primary">Comment ça marche</p>
+              <ul className="text-xs text-muted-foreground space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">1.</span>
+                  <span>L'IA analyse les articles existants de votre site pour éviter les répétitions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">2.</span>
+                  <span>Elle génère un sujet unique et rédige l'article complet</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">3.</span>
+                  <span>L'article passe une vérification qualité et est corrigé automatiquement si besoin</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">4.</span>
+                  <span>Une fois publié, le prochain article est automatiquement programmé</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="ghost" onClick={() => setStep(2)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+            <Button variant="emerald" className="gap-2" onClick={handleActivateAutopilot} disabled={autopilotCreating}>
+              {autopilotCreating ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Activation...</>
+              ) : (
+                <><Zap className="w-4 h-4" /> Activer l'autopilote</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Step 3 Auto: Topic review */}
-      {step === 3 && isBatchMode && (
+      {step === 3 && mode === "auto" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {topicsLoading ? "Génération des sujets..." : "Valider les sujets"}
@@ -718,7 +818,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 4 Auto: Batch generation */}
-      {step === 4 && isBatchMode && (
+      {step === 4 && mode === "auto" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {batchGenerating ? "Rédaction en cours..." : batchCompleted.length > 0 ? "Génération terminée !" : "Lancer la rédaction"}
@@ -812,7 +912,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3: Custom mode - single article preview */}
-      {step === 3 && !isBatchMode && (
+      {step === 3 && mode === "custom" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isGenerating ? "Génération en cours..." : "Aperçu & Confirmation"}

@@ -15,7 +15,6 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find all articles that are scheduled and whose scheduled_at is in the past
     const now = new Date().toISOString();
     const { data: articles, error: fetchError } = await supabase
       .from("articles")
@@ -23,178 +22,78 @@ serve(async (req) => {
       .eq("status", "scheduled")
       .lte("scheduled_at", now);
 
-    if (fetchError) {
-      console.error("Error fetching scheduled articles:", fetchError);
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
     if (!articles || articles.length === 0) {
-      console.log("No articles to publish at", now);
       return new Response(JSON.stringify({ published: 0, message: "Aucun article à publier" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Found ${articles.length} article(s) to publish`);
-
+    console.log(`Found ${articles.length} article(s) to process`);
     let publishedCount = 0;
 
     for (const article of articles) {
-      // Get the site info for building the page URL
-      const { data: site } = await supabase
-        .from("sites")
-        .select("url, blog_path")
-        .eq("id", article.site_id)
-        .single();
+      try {
+        // ── AUTOPILOT: needs content generation first ──
+        if (article.mode === "autopilot" && !article.content) {
+          console.log(`[Autopilot] Generating content for "${article.title}" (${article.id})`);
 
-      const pageUrl = site
-        ? `${site.url.replace(/\/$/, "")}${site.blog_path}/${article.slug}`
-        : null;
+          const genResp = await fetch(`${supabaseUrl}/functions/v1/generate-autopilot-article`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${serviceRoleKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ articleId: article.id }),
+          });
 
-      // Update the article to published
-      const { error: updateError } = await supabase
-        .from("articles")
-        .update({
-          status: "published",
-          published_at: now,
-          page_url: pageUrl,
-        })
-        .eq("id", article.id);
-
-      if (updateError) {
-        console.error(`Error publishing article ${article.id}:`, updateError);
-        continue;
-      }
-
-      console.log(`Published: "${article.title}" -> ${pageUrl}`);
-      publishedCount++;
-
-      // Handle recurring articles: create the next occurrence
-      if (article.frequency && article.frequency !== "once" && article.scheduled_at) {
-        const nextDate = computeNextDate(article.scheduled_at, article.frequency);
-        if (nextDate) {
-          // Generate a placeholder title indicating this needs AI regeneration
-          const placeholderTitle = `[À générer] ${article.category || article.title}`;
-          const nextSlug = `${(article.category || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
-
-          const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
-            site_id: article.site_id,
-            title: placeholderTitle,
-            slug: nextSlug,
-            content: null,
-            excerpt: null,
-            image_url: null,
-            mode: article.mode,
-            status: "scheduled",
-            scheduled_at: nextDate.toISOString(),
-            frequency: article.frequency,
-            category: article.category,
-            instructions: article.instructions,
-            tone: article.tone,
-            keywords: article.keywords,
-          }).select().single();
-
-          if (insertError) {
-            console.error(`Error creating next occurrence for ${article.id}:`, insertError);
-          } else if (newArticle) {
-            console.log(`Next occurrence scheduled for ${nextDate.toISOString()}, triggering AI generation...`);
-
-            // Get site info for AI generation
-            const { data: siteInfo } = await supabase
-              .from("sites")
-              .select("name, niche, description, url")
-              .eq("id", article.site_id)
-              .single();
-
-            if (siteInfo) {
-              // Trigger AI article generation for the new occurrence
-              try {
-                const genResp = await fetch(`${supabaseUrl}/functions/v1/generate-article`, {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${serviceRoleKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    mode: "auto",
-                    siteName: siteInfo.name,
-                    siteNiche: siteInfo.niche || "",
-                    siteDescription: siteInfo.description || "",
-                    siteUrl: siteInfo.url || "",
-                    category: article.category || "",
-                    topic: `Un nouveau sujet pertinent dans la catégorie "${article.category || siteInfo.niche || "blog"}" — différent de "${article.title}"`,
-                  }),
-                });
-
-                if (genResp.ok && genResp.body) {
-                  const reader = genResp.body.getReader();
-                  const decoder = new TextDecoder();
-                  let fullText = "";
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value, { stream: true });
-                    for (const line of chunk.split("\n")) {
-                      if (!line.startsWith("data: ")) continue;
-                      const jsonStr = line.slice(6).trim();
-                      if (jsonStr === "[DONE]") continue;
-                      try {
-                        const p = JSON.parse(jsonStr);
-                        const c = p.choices?.[0]?.delta?.content;
-                        if (c) fullText += c;
-                      } catch {}
-                    }
-                  }
-
-                  const titleMatch = fullText.match(/TITRE:\s*(.+)/);
-                  const excerptMatch = fullText.match(/EXTRAIT:\s*(.+)/);
-                  const contentMatch = fullText.match(/CONTENU:\s*([\s\S]*)/);
-
-                  const genUpdate: Record<string, string> = {};
-                  if (titleMatch?.[1]) genUpdate.title = titleMatch[1].trim();
-                  if (excerptMatch?.[1]) genUpdate.excerpt = excerptMatch[1].trim();
-                  if (contentMatch?.[1]) genUpdate.content = contentMatch[1].trim();
-
-                  // Update slug based on new title
-                  if (genUpdate.title) {
-                    genUpdate.slug = genUpdate.title
-                      .toLowerCase()
-                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/(^-|-$)/g, "");
-                  }
-
-                  if (Object.keys(genUpdate).length > 0) {
-                    await supabase.from("articles").update(genUpdate).eq("id", newArticle.id);
-                    console.log(`AI generated new article: "${genUpdate.title || placeholderTitle}"`);
-                  }
-
-                  // Trigger image generation
-                  try {
-                    await fetch(`${supabaseUrl}/functions/v1/generate-article-image`, {
-                      method: "POST",
-                      headers: {
-                        Authorization: `Bearer ${serviceRoleKey}`,
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        articleId: newArticle.id,
-                        title: genUpdate.title || placeholderTitle,
-                        category: article.category || "",
-                        siteName: siteInfo.name,
-                      }),
-                    });
-                    console.log(`Image generation triggered for ${newArticle.id}`);
-                  } catch (imgErr) {
-                    console.error(`Image generation failed for ${newArticle.id}:`, imgErr);
-                  }
-                }
-              } catch (genErr) {
-                console.error(`AI generation failed for next occurrence:`, genErr);
-              }
-            }
+          if (!genResp.ok) {
+            const err = await genResp.text();
+            console.error(`[Autopilot] Generation failed for ${article.id}:`, err);
+            continue;
           }
+
+          const genResult = await genResp.json();
+          console.log(`[Autopilot] Generated: "${genResult.title}" (score: ${genResult.score}, corrected: ${genResult.corrected})`);
+
+          // Re-fetch the now-updated article
+          const { data: updated } = await supabase.from("articles").select("*").eq("id", article.id).single();
+          if (updated) Object.assign(article, updated);
         }
+
+        // ── PUBLISH the article ──
+        const { data: site } = await supabase
+          .from("sites")
+          .select("url, blog_path")
+          .eq("id", article.site_id)
+          .single();
+
+        const pageUrl = site
+          ? `${site.url.replace(/\/$/, "")}${site.blog_path}/${article.slug}`
+          : article.page_url;
+
+        const { error: updateError } = await supabase
+          .from("articles")
+          .update({ status: "published", published_at: now, page_url: pageUrl })
+          .eq("id", article.id);
+
+        if (updateError) {
+          console.error(`Error publishing article ${article.id}:`, updateError);
+          continue;
+        }
+
+        console.log(`Published: "${article.title}" -> ${pageUrl}`);
+        publishedCount++;
+
+        // ── Schedule NEXT occurrence (autopilot or recurring) ──
+        if (article.mode === "autopilot" && article.frequency) {
+          await scheduleNextAutopilot(supabase, article);
+        } else if (article.frequency && article.frequency !== "once" && article.scheduled_at) {
+          await scheduleNextRecurring(supabase, supabaseUrl, serviceRoleKey, article);
+        }
+      } catch (articleErr) {
+        console.error(`Error processing article ${article.id}:`, articleErr);
       }
     }
 
@@ -211,22 +110,197 @@ serve(async (req) => {
   }
 });
 
+/**
+ * Schedule next autopilot article — creates a placeholder that will be
+ * generated by the smart pipeline when its scheduled_at is reached.
+ */
+async function scheduleNextAutopilot(
+  supabase: ReturnType<typeof createClient>,
+  article: Record<string, unknown>
+) {
+  const nextDate = computeNextDateFromFrequency(article.scheduled_at as string, article.frequency as string);
+  if (!nextDate) return;
+
+  const { error } = await supabase.from("articles").insert({
+    site_id: article.site_id,
+    title: `[Autopilot] Article à générer`,
+    slug: `autopilot-${Date.now()}`,
+    content: null,
+    excerpt: null,
+    image_url: null,
+    mode: "autopilot",
+    status: "scheduled",
+    scheduled_at: nextDate.toISOString(),
+    frequency: article.frequency,
+    category: article.category,
+    instructions: article.instructions,
+    tone: article.tone,
+    keywords: article.keywords,
+  });
+
+  if (error) {
+    console.error(`Error scheduling next autopilot:`, error);
+  } else {
+    console.log(`[Autopilot] Next article scheduled for ${nextDate.toISOString()}`);
+  }
+}
+
+/**
+ * Legacy recurring article handling (non-autopilot modes with frequency).
+ */
+async function scheduleNextRecurring(
+  supabase: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  article: Record<string, unknown>
+) {
+  const nextDate = computeNextDate(article.scheduled_at as string, article.frequency as string);
+  if (!nextDate) return;
+
+  const placeholderTitle = `[À générer] ${article.category || article.title}`;
+  const slug = `${((article.category as string) || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+
+  const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
+    site_id: article.site_id,
+    title: placeholderTitle,
+    slug,
+    content: null,
+    excerpt: null,
+    image_url: null,
+    mode: article.mode,
+    status: "scheduled",
+    scheduled_at: nextDate.toISOString(),
+    frequency: article.frequency,
+    category: article.category,
+    instructions: article.instructions,
+    tone: article.tone,
+    keywords: article.keywords,
+  }).select().single();
+
+  if (insertError) {
+    console.error(`Error creating next recurring article:`, insertError);
+    return;
+  }
+
+  if (!newArticle) return;
+
+  // Trigger AI generation for the recurring article
+  const { data: siteInfo } = await supabase
+    .from("sites")
+    .select("name, niche, description, url")
+    .eq("id", article.site_id)
+    .single();
+
+  if (!siteInfo) return;
+
+  try {
+    const genResp = await fetch(`${supabaseUrl}/functions/v1/generate-article`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: "auto",
+        siteName: siteInfo.name,
+        siteNiche: siteInfo.niche || "",
+        siteDescription: siteInfo.description || "",
+        siteUrl: siteInfo.url || "",
+        category: article.category || "",
+        topic: `Un nouveau sujet pertinent dans la catégorie "${article.category || siteInfo.niche || "blog"}" — différent de "${article.title}"`,
+      }),
+    });
+
+    if (genResp.ok && genResp.body) {
+      const reader = genResp.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const p = JSON.parse(jsonStr);
+            const c = p.choices?.[0]?.delta?.content;
+            if (c) fullText += c;
+          } catch {}
+        }
+      }
+
+      const titleMatch = fullText.match(/TITRE:\s*(.+)/);
+      const excerptMatch = fullText.match(/EXTRAIT:\s*(.+)/);
+      const contentMatch = fullText.match(/CONTENU:\s*([\s\S]*)/);
+
+      const genUpdate: Record<string, string> = {};
+      if (titleMatch?.[1]) genUpdate.title = titleMatch[1].trim();
+      if (excerptMatch?.[1]) genUpdate.excerpt = excerptMatch[1].trim();
+      if (contentMatch?.[1]) genUpdate.content = contentMatch[1].trim();
+
+      if (genUpdate.title) {
+        genUpdate.slug = genUpdate.title
+          .toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      }
+
+      if (Object.keys(genUpdate).length > 0) {
+        await supabase.from("articles").update(genUpdate).eq("id", newArticle.id);
+      }
+
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/generate-article-image`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            articleId: newArticle.id,
+            title: genUpdate.title || placeholderTitle,
+            category: article.category || "",
+            siteName: siteInfo.name,
+          }),
+        });
+      } catch {}
+    }
+  } catch (genErr) {
+    console.error(`AI generation failed for recurring article:`, genErr);
+  }
+}
+
+/**
+ * Parse autopilot frequency strings like "Tous les 3 jours" into next date.
+ */
+function computeNextDateFromFrequency(currentDateStr: string, frequency: string): Date | null {
+  const d = new Date(currentDateStr);
+
+  // Handle "Tous les X jour(s)/semaine(s)/mois"
+  const match = frequency.match(/tous les (\d+)\s+(jour|semaine|mois)/i);
+  if (match) {
+    const val = parseInt(match[1]);
+    const unit = match[2].toLowerCase();
+    if (unit.startsWith("jour")) d.setDate(d.getDate() + val);
+    else if (unit.startsWith("semaine")) d.setDate(d.getDate() + val * 7);
+    else if (unit === "mois") d.setMonth(d.getMonth() + val);
+    return d;
+  }
+
+  // Handle legacy fixed frequencies
+  return computeNextDate(currentDateStr, frequency);
+}
+
 function computeNextDate(currentDateStr: string, frequency: string): Date | null {
   const d = new Date(currentDateStr);
   switch (frequency) {
-    case "daily":
-      d.setDate(d.getDate() + 1);
-      return d;
-    case "weekly":
-      d.setDate(d.getDate() + 7);
-      return d;
-    case "biweekly":
-      d.setDate(d.getDate() + 14);
-      return d;
-    case "monthly":
-      d.setMonth(d.getMonth() + 1);
-      return d;
-    default:
-      return null;
+    case "daily": d.setDate(d.getDate() + 1); return d;
+    case "weekly": d.setDate(d.getDate() + 7); return d;
+    case "biweekly": d.setDate(d.getDate() + 14); return d;
+    case "monthly": d.setMonth(d.getMonth() + 1); return d;
+    default: return null;
   }
 }
