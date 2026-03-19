@@ -148,12 +148,15 @@ const SiteDashboard = () => {
                 >
                   <div className="flex">
                     {/* Image */}
-                    <div className="w-[200px] shrink-0">
+                    <div className="w-[200px] shrink-0 bg-muted">
                       <img
                         src={imageUrl}
                         alt={article.title}
                         className="w-full h-full object-cover min-h-[180px]"
                         loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/placeholder.svg";
+                        }}
                       />
                     </div>
 
