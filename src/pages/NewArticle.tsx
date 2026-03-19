@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2 } from "lucide-react";
+import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2, X, Edit3, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ const slugify = (text: string) =>
 
 const GENERATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-article`;
 const GENERATE_IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-article-image`;
+const GENERATE_TOPICS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-topics`;
 
 async function streamArticle({
   body,
@@ -110,6 +111,12 @@ function parseGeneratedContent(raw: string) {
   };
 }
 
+interface TopicItem {
+  text: string;
+  checked: boolean;
+  editing: boolean;
+}
+
 const NewArticle = () => {
   const navigate = useNavigate();
   const { data: sites = [] } = useSites();
@@ -128,9 +135,13 @@ const NewArticle = () => {
   const [planFrequency, setPlanFrequency] = useState<Frequency>("weekly");
   const [planCount, setPlanCount] = useState(3);
   const [planPeriod, setPlanPeriod] = useState<PeriodUnit>("month");
-  const [planConfirmed, setPlanConfirmed] = useState(false);
 
-  // Batch generation state
+  // Topics state (auto step 3)
+  const [topics, setTopics] = useState<TopicItem[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [editingValue, setEditingValue] = useState("");
+
+  // Batch generation state (auto step 4)
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
   const [batchTotal, setBatchTotal] = useState(0);
@@ -144,12 +155,82 @@ const NewArticle = () => {
   const selectedSiteData = sites.find((s) => s.id === selectedSite);
   const parsed = generationDone ? parseGeneratedContent(generatedRaw) : null;
 
-  // Calculate scheduled dates for batch
+  const validatedTopics = topics.filter((t) => t.checked);
+
+  // Calculate scheduled dates based on validated topics count
   const scheduledDates = useMemo(() => {
     if (mode !== "auto") return [];
+    const count = validatedTopics.length || calculateScheduledDates(planFrequency, planCount, planPeriod).length;
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
+    // Generate exactly as many dates as validated topics
+    if (validatedTopics.length > 0) {
+      const dates: Date[] = [];
+      let current = startDate;
+      for (let i = 0; i < validatedTopics.length; i++) {
+        dates.push(new Date(current));
+        switch (planFrequency) {
+          case "daily": current = new Date(current.getTime() + 86400000); break;
+          case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
+          case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
+          case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
+        }
+      }
+      return dates;
+    }
     return calculateScheduledDates(planFrequency, planCount, planPeriod, startDate);
-  }, [mode, planFrequency, planCount, planPeriod, scheduledDate]);
+  }, [mode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length]);
+
+  // Step 3 auto: fetch topics
+  const handleGenerateTopics = async () => {
+    setTopicsLoading(true);
+    setTopics([]);
+    try {
+      const targetCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+      const resp = await fetch(GENERATE_TOPICS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          count: targetCount,
+          siteName: selectedSiteData?.name || "",
+          siteCity: selectedSiteData?.niche || "", // city not in DB yet, use niche as context
+          siteDescription: selectedSiteData?.description || "",
+          siteUrl: selectedSiteData?.url || "",
+          siteNiche: selectedSiteData?.niche || "",
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Erreur réseau" }));
+        throw new Error(err.error || `Erreur ${resp.status}`);
+      }
+      const data = await resp.json();
+      const fetchedTopics: string[] = data.topics || [];
+      setTopics(fetchedTopics.map((t) => ({ text: t, checked: true, editing: false })));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la génération des sujets");
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
+
+  const toggleTopic = (idx: number) => {
+    setTopics((prev) => prev.map((t, i) => i === idx ? { ...t, checked: !t.checked } : t));
+  };
+
+  const removeTopic = (idx: number) => {
+    setTopics((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const startEditTopic = (idx: number) => {
+    setEditingValue(topics[idx].text);
+    setTopics((prev) => prev.map((t, i) => i === idx ? { ...t, editing: true } : t));
+  };
+
+  const confirmEditTopic = (idx: number) => {
+    setTopics((prev) => prev.map((t, i) => i === idx ? { ...t, text: editingValue.trim() || t.text, editing: false } : t));
+  };
 
   const handleGenerateSingle = async () => {
     setIsGenerating(true);
@@ -182,8 +263,8 @@ const NewArticle = () => {
     }
   };
 
-  // Generate a single article in the batch, returns parsed content
-  const generateOneArticle = async (): Promise<ReturnType<typeof parseGeneratedContent>> => {
+  // Generate a single article for a given topic
+  const generateOneArticle = async (topic: string): Promise<ReturnType<typeof parseGeneratedContent>> => {
     return new Promise((resolve, reject) => {
       let raw = "";
       streamArticle({
@@ -194,6 +275,7 @@ const NewArticle = () => {
           siteDescription: selectedSiteData?.description || "",
           siteUrl: selectedSiteData?.url || "",
           category,
+          topic,
         },
         onDelta: (chunk) => { raw += chunk; },
         onDone: () => resolve(parseGeneratedContent(raw)),
@@ -202,18 +284,18 @@ const NewArticle = () => {
   };
 
   const handleBatchGenerate = async () => {
-    if (!selectedSite || scheduledDates.length === 0) return;
+    if (!selectedSite || validatedTopics.length === 0) return;
 
     setBatchGenerating(true);
     setBatchProgress(0);
-    setBatchTotal(scheduledDates.length);
+    setBatchTotal(validatedTopics.length);
     setBatchCompleted([]);
 
-    for (let i = 0; i < scheduledDates.length; i++) {
+    for (let i = 0; i < validatedTopics.length; i++) {
       try {
         setBatchProgress(i + 1);
-        const content = await generateOneArticle();
-        const finalTitle = content.title || `Article ${i + 1}`;
+        const content = await generateOneArticle(validatedTopics[i].text);
+        const finalTitle = content.title || validatedTopics[i].text;
 
         await new Promise<void>((resolve, reject) => {
           createArticle.mutate(
@@ -223,7 +305,7 @@ const NewArticle = () => {
               slug: slugify(finalTitle) + `-${Date.now()}`,
               mode: "auto",
               status: "scheduled",
-              scheduled_at: scheduledDates[i].toISOString(),
+              scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),
               frequency: planFrequency,
               category: category || null,
               content: content.content || null,
@@ -232,8 +314,6 @@ const NewArticle = () => {
             {
               onSuccess: (data) => {
                 setBatchCompleted((prev) => [...prev, finalTitle]);
-
-                // Fire & forget image generation
                 fetch(GENERATE_IMAGE_URL, {
                   method: "POST",
                   headers: {
@@ -247,7 +327,6 @@ const NewArticle = () => {
                     siteNiche: selectedSiteData?.niche || "",
                   }),
                 }).catch(() => {});
-
                 resolve();
               },
               onError: (err) => reject(err),
@@ -260,7 +339,7 @@ const NewArticle = () => {
     }
 
     setBatchGenerating(false);
-    toast.success(`${scheduledDates.length} articles générés et planifiés !`);
+    toast.success(`${validatedTopics.length} articles générés et planifiés !`);
     setTimeout(() => navigate("/articles"), 1500);
   };
 
@@ -288,7 +367,6 @@ const NewArticle = () => {
         onSuccess: (data) => {
           toast.success("Article planifié !");
           navigate("/articles");
-
           fetch(GENERATE_IMAGE_URL, {
             method: "POST",
             headers: {
@@ -310,10 +388,20 @@ const NewArticle = () => {
 
   const goToStep3 = () => {
     setStep(3);
-    if (mode === "custom" && !generatedRaw) handleGenerateSingle();
+    if (mode === "auto") {
+      handleGenerateTopics();
+    } else if (mode === "custom" && !generatedRaw) {
+      handleGenerateSingle();
+    }
+  };
+
+  const goToStep4 = () => {
+    if (validatedTopics.length === 0) return toast.error("Sélectionnez au moins un sujet");
+    setStep(4);
   };
 
   const isAutoMode = mode === "auto";
+  const totalSteps = isAutoMode ? 4 : 3;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
@@ -323,12 +411,12 @@ const NewArticle = () => {
         </Button>
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Nouvel Article</h1>
-          <p className="font-mono text-xs text-muted-foreground mt-1">Étape {step} sur 3</p>
+          <p className="font-mono text-xs text-muted-foreground mt-1">Étape {step} sur {totalSteps}</p>
         </div>
       </div>
 
       <div className="flex gap-2">
-        {[1, 2, 3].map((s) => (
+        {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
           <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? "bg-primary" : "bg-border"}`} />
         ))}
       </div>
@@ -339,7 +427,7 @@ const NewArticle = () => {
           <h2 className="font-display text-lg font-semibold text-foreground">Choisir le mode</h2>
           <div className="grid grid-cols-2 gap-4">
             {([
-              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "BlogFlow analyse le site, génère les sujets et rédige les articles automatiquement." },
+              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "BlogFlow génère les sujets, vous validez, puis les articles sont rédigés automatiquement." },
               { key: "custom" as const, icon: PenLine, title: "Mode Personnalisé", desc: "Fournissez le sujet, les instructions et le ton. L'IA rédige, vous validez." },
             ]).map((m) => (
               <button
@@ -450,11 +538,14 @@ const NewArticle = () => {
                   </div>
                 </div>
 
-                {scheduledDates.length > 0 && (
-                  <div className="text-xs text-primary font-mono mt-2">
-                    → {scheduledDates.length} article{scheduledDates.length > 1 ? "s" : ""} seront générés
-                  </div>
-                )}
+                {(() => {
+                  const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+                  return previewCount > 0 ? (
+                    <div className="text-xs text-primary font-mono mt-2">
+                      → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                    </div>
+                  ) : null;
+                })()}
               </div>
             )}
 
@@ -481,7 +572,7 @@ const NewArticle = () => {
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
               {isAutoMode ? (
-                <><Calendar className="w-4 h-4" /> Voir le plan</>
+                <><Sparkles className="w-4 h-4" /> Générer les sujets</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> Générer l'article</>
               )}
@@ -490,106 +581,202 @@ const NewArticle = () => {
         </div>
       )}
 
-      {/* Step 3: Planning summary (auto) or Preview (custom) */}
-      {step === 3 && isAutoMode && !batchGenerating && !batchCompleted.length && (
+      {/* Step 3 Auto: Topic review */}
+      {step === 3 && isAutoMode && (
         <div className="space-y-6">
-          <h2 className="font-display text-lg font-semibold text-foreground">Résumé de planification</h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            {topicsLoading ? "Génération des sujets..." : "Valider les sujets"}
+          </h2>
 
-          <div className="bg-card border border-border rounded-lg p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {scheduledDates.length} article{scheduledDates.length > 1 ? "s" : ""} seront générés et planifiés
-                </p>
-                {scheduledDates.length >= 2 && (
-                  <p className="text-xs text-muted-foreground font-mono">
-                    du {formatDateFr(scheduledDates[0])} au {formatDateFr(scheduledDates[scheduledDates.length - 1])}
-                  </p>
-                )}
-              </div>
+          {topicsLoading ? (
+            <div className="bg-card border border-border rounded-lg p-8 flex flex-col items-center gap-4">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">L'IA analyse votre site et génère des sujets pertinents...</p>
             </div>
+          ) : (
+            <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground font-mono">
+                  {validatedTopics.length} sujet{validatedTopics.length > 1 ? "s" : ""} sélectionné{validatedTopics.length > 1 ? "s" : ""} sur {topics.length}
+                </p>
+                <Button variant="ghost" size="sm" onClick={handleGenerateTopics} className="text-xs gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Régénérer
+                </Button>
+              </div>
 
-            <div className="border-t border-border pt-4">
-              <p className="text-xs text-muted-foreground font-mono mb-3">Dates de publication prévues :</p>
-              <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-2">
-                {scheduledDates.map((date, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1.5 px-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
-                    <span className="text-xs font-mono text-primary w-6 text-right">{i + 1}.</span>
-                    <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-sm text-foreground font-mono">{formatDateFr(date)}</span>
+              <div className="max-h-[400px] overflow-y-auto space-y-2 pr-1">
+                {topics.map((topic, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 py-2.5 px-3 rounded-md border transition-colors ${
+                      topic.checked ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"
+                    }`}
+                  >
+                    <button
+                      onClick={() => toggleTopic(i)}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        topic.checked ? "border-primary bg-primary" : "border-muted-foreground/40"
+                      }`}
+                    >
+                      {topic.checked && <Check className="w-3 h-3 text-primary-foreground" />}
+                    </button>
+
+                    {topic.editing ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && confirmEditTopic(i)}
+                          autoFocus
+                          className="flex-1 bg-surface border border-primary/40 rounded px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <button onClick={() => confirmEditTopic(i)} className="text-primary hover:text-primary/80">
+                          <Check className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className={`flex-1 text-sm ${topic.checked ? "text-foreground" : "text-muted-foreground line-through"}`}>
+                          {topic.text}
+                        </span>
+                        <button onClick={() => startEditTopic(i)} className="text-muted-foreground hover:text-foreground shrink-0">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => removeTopic(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-4">
-              <Bot className="w-4 h-4" />
-              <span>Chaque article sera généré automatiquement par l'IA avec un sujet unique adapté à <strong className="text-foreground">{selectedSiteData?.name}</strong></span>
+              {validatedTopics.length > 0 && scheduledDates.length > 0 && (
+                <div className="border-t border-border pt-4 text-xs text-muted-foreground font-mono">
+                  <p className="text-primary font-semibold mb-2">
+                    {validatedTopics.length} article{validatedTopics.length > 1 ? "s" : ""} seront générés et planifiés
+                    {scheduledDates.length >= 2 && (
+                      <> du {formatDateFr(scheduledDates[0])} au {formatDateFr(scheduledDates[scheduledDates.length - 1])}</>
+                    )}
+                  </p>
+                  <div className="max-h-[150px] overflow-y-auto space-y-1">
+                    {validatedTopics.map((topic, i) => (
+                      <div key={i} className="flex items-center gap-2 py-1">
+                        <CalendarDays className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="truncate">{topic.text}</span>
+                        <span className="ml-auto text-muted-foreground/70 shrink-0">
+                          {scheduledDates[i] ? formatDateFr(scheduledDates[i]) : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(2)}>
               <ArrowLeft className="w-4 h-4 mr-2" /> Modifier
             </Button>
-            <Button variant="emerald" className="gap-2" onClick={handleBatchGenerate}>
-              <Sparkles className="w-4 h-4" />
-              Lancer la génération ({scheduledDates.length} articles)
+            <Button variant="emerald" className="gap-2" disabled={validatedTopics.length === 0 || topicsLoading} onClick={goToStep4}>
+              <ArrowRight className="w-4 h-4" />
+              Lancer la rédaction ({validatedTopics.length} article{validatedTopics.length > 1 ? "s" : ""})
             </Button>
           </div>
         </div>
       )}
 
-      {/* Batch generation progress */}
-      {step === 3 && isAutoMode && (batchGenerating || batchCompleted.length > 0) && (
+      {/* Step 4 Auto: Batch generation */}
+      {step === 4 && isAutoMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
-            {batchGenerating ? "Génération en cours..." : "Génération terminée !"}
+            {batchGenerating ? "Rédaction en cours..." : batchCompleted.length > 0 ? "Génération terminée !" : "Lancer la rédaction"}
           </h2>
 
-          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-            {/* Progress bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-mono text-muted-foreground">
-                <span>Progression</span>
-                <span>{batchProgress} / {batchTotal}</span>
+          {!batchGenerating && batchCompleted.length === 0 && (
+            <div className="bg-card border border-border rounded-lg p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {validatedTopics.length} article{validatedTopics.length > 1 ? "s" : ""} seront rédigés et planifiés
+                  </p>
+                  {scheduledDates.length >= 2 && (
+                    <p className="text-xs text-muted-foreground font-mono">
+                      du {formatDateFr(scheduledDates[0])} au {formatDateFr(scheduledDates[scheduledDates.length - 1])}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${(batchProgress / batchTotal) * 100}%` }}
-                />
+
+              <div className="border-t border-border pt-4 max-h-[300px] overflow-y-auto space-y-1.5">
+                {validatedTopics.map((topic, i) => (
+                  <div key={i} className="flex items-center gap-3 py-1.5 px-3 rounded-md bg-muted/50">
+                    <span className="text-xs font-mono text-primary w-6 text-right">{i + 1}.</span>
+                    <span className="text-sm text-foreground truncate flex-1">{topic.text}</span>
+                    <span className="text-xs text-muted-foreground font-mono shrink-0">
+                      {scheduledDates[i] ? formatDateFr(scheduledDates[i]) : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between pt-2">
+                <Button variant="ghost" onClick={() => setStep(3)}>
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Modifier les sujets
+                </Button>
+                <Button variant="emerald" className="gap-2" onClick={handleBatchGenerate}>
+                  <Sparkles className="w-4 h-4" />
+                  Lancer la génération ({validatedTopics.length} articles)
+                </Button>
               </div>
             </div>
+          )}
 
-            {/* Completed articles */}
-            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-              {batchCompleted.map((title, i) => (
-                <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-primary/5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="text-sm text-foreground truncate">{title}</span>
-                  <span className="text-xs text-muted-foreground font-mono ml-auto shrink-0">
-                    {formatDateFr(scheduledDates[i])}
-                  </span>
+          {(batchGenerating || batchCompleted.length > 0) && (
+            <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-mono text-muted-foreground">
+                  <span>Progression</span>
+                  <span>{batchProgress} / {batchTotal}</span>
                 </div>
-              ))}
-              {batchGenerating && (
-                <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/50">
-                  <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
-                  <span className="text-sm text-muted-foreground">Génération de l'article {batchProgress}...</span>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${(batchProgress / batchTotal) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                {batchCompleted.map((title, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-primary/5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-sm text-foreground truncate">{title}</span>
+                    <span className="text-xs text-muted-foreground font-mono ml-auto shrink-0">
+                      {scheduledDates[i] ? formatDateFr(scheduledDates[i]) : ""}
+                    </span>
+                  </div>
+                ))}
+                {batchGenerating && (
+                  <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/50">
+                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
+                    <span className="text-sm text-muted-foreground">Rédaction : {validatedTopics[batchProgress - 1]?.text || `Article ${batchProgress}`}...</span>
+                  </div>
+                )}
+              </div>
+
+              {!batchGenerating && batchCompleted.length > 0 && (
+                <div className="flex justify-end pt-2">
+                  <Button variant="emerald" onClick={() => navigate("/articles")} className="gap-2">
+                    <ArrowRight className="w-4 h-4" /> Voir les articles
+                  </Button>
                 </div>
               )}
-            </div>
-          </div>
-
-          {!batchGenerating && (
-            <div className="flex justify-end">
-              <Button variant="emerald" onClick={() => navigate("/articles")} className="gap-2">
-                <ArrowRight className="w-4 h-4" /> Voir les articles
-              </Button>
             </div>
           )}
         </div>
