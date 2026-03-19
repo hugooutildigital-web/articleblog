@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2, X, Edit3, Check } from "lucide-react";
+import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2, X, Edit3, Check, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
@@ -15,7 +15,14 @@ import {
   type PeriodUnit,
 } from "@/lib/scheduling";
 
-type Mode = "auto" | "custom" | null;
+type Mode = "auto" | "custom" | "autopilot" | null;
+
+const AUTOPILOT_TOPIC_COUNTS: Record<Frequency, number> = {
+  daily: 7,
+  weekly: 4,
+  biweekly: 4,
+  monthly: 3,
+};
 
 const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -157,35 +164,36 @@ const NewArticle = () => {
 
   const validatedTopics = topics.filter((t) => t.checked);
 
+  const isBatchMode = mode === "auto" || mode === "autopilot";
+
+  // For autopilot, compute topic count from frequency defaults
+  const autopilotTopicCount = mode === "autopilot" ? AUTOPILOT_TOPIC_COUNTS[planFrequency] : 0;
+
   // Calculate scheduled dates based on validated topics count
   const scheduledDates = useMemo(() => {
-    if (mode !== "auto") return [];
-    const count = validatedTopics.length || calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+    if (!isBatchMode) return [];
     const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
-    // Generate exactly as many dates as validated topics
-    if (validatedTopics.length > 0) {
-      const dates: Date[] = [];
-      let current = startDate;
-      for (let i = 0; i < validatedTopics.length; i++) {
-        dates.push(new Date(current));
-        switch (planFrequency) {
-          case "daily": current = new Date(current.getTime() + 86400000); break;
-          case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
-          case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
-          case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
-        }
+    const topicCount = validatedTopics.length || (mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(planFrequency, planCount, planPeriod).length);
+    const dates: Date[] = [];
+    let current = startDate;
+    for (let i = 0; i < topicCount; i++) {
+      dates.push(new Date(current));
+      switch (planFrequency) {
+        case "daily": current = new Date(current.getTime() + 86400000); break;
+        case "weekly": current = new Date(current.getTime() + 7 * 86400000); break;
+        case "biweekly": current = new Date(current.getTime() + 14 * 86400000); break;
+        case "monthly": { const d = new Date(current); d.setMonth(d.getMonth() + 1); current = d; break; }
       }
-      return dates;
     }
-    return calculateScheduledDates(planFrequency, planCount, planPeriod, startDate);
-  }, [mode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length]);
+    return dates;
+  }, [mode, isBatchMode, planFrequency, planCount, planPeriod, scheduledDate, validatedTopics.length, autopilotTopicCount]);
 
   // Step 3 auto: fetch topics
   const handleGenerateTopics = async () => {
     setTopicsLoading(true);
     setTopics([]);
     try {
-      const targetCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+      const targetCount = mode === "autopilot" ? autopilotTopicCount : calculateScheduledDates(planFrequency, planCount, planPeriod).length;
       const resp = await fetch(GENERATE_TOPICS_URL, {
         method: "POST",
         headers: {
@@ -269,7 +277,7 @@ const NewArticle = () => {
       let raw = "";
       streamArticle({
         body: {
-          mode: "auto",
+          mode: mode || "auto",
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
           siteDescription: selectedSiteData?.description || "",
@@ -303,7 +311,7 @@ const NewArticle = () => {
               site_id: selectedSite,
               title: finalTitle,
               slug: slugify(finalTitle),
-              mode: "auto",
+              mode: mode || "auto",
               status: "scheduled",
               scheduled_at: scheduledDates[i]?.toISOString() || new Date().toISOString(),
               frequency: planFrequency,
@@ -388,7 +396,7 @@ const NewArticle = () => {
 
   const goToStep3 = () => {
     setStep(3);
-    if (mode === "auto") {
+    if (isBatchMode) {
       handleGenerateTopics();
     } else if (mode === "custom" && !generatedRaw) {
       handleGenerateSingle();
@@ -400,8 +408,7 @@ const NewArticle = () => {
     setStep(4);
   };
 
-  const isAutoMode = mode === "auto";
-  const totalSteps = isAutoMode ? 4 : 3;
+  const totalSteps = isBatchMode ? 4 : 3;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
@@ -425,10 +432,11 @@ const NewArticle = () => {
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="font-display text-lg font-semibold text-foreground">Choisir le mode</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             {([
-              { key: "auto" as const, icon: Bot, title: "Mode Auto", desc: "L'IA génère les sujets, vous validez, puis les articles sont rédigés automatiquement." },
-              { key: "custom" as const, icon: PenLine, title: "Mode Personnalisé", desc: "Fournissez le sujet, les instructions et le ton. L'IA rédige, vous validez." },
+              { key: "autopilot" as const, icon: Zap, title: "Autopilote", desc: "Choisissez la fréquence, l'IA publie en continu. Mode campagne illimitée." },
+              { key: "auto" as const, icon: Bot, title: "Campagne planifiée", desc: "Définissez une période et une fréquence. L'IA génère les sujets, vous validez." },
+              { key: "custom" as const, icon: PenLine, title: "Article unique", desc: "Fournissez le sujet et les instructions. L'IA rédige un seul article." },
             ]).map((m) => (
               <button
                 key={m.key}
@@ -492,15 +500,18 @@ const NewArticle = () => {
               <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: SEO, Design, Tech..." className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
 
-            {/* Auto mode: batch planning */}
-            {isAutoMode && (
+            {/* Batch planning: auto or autopilot */}
+            {isBatchMode && (
               <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Planification automatique</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {mode === "autopilot" ? "Fréquence de publication" : "Planification automatique"}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                {mode === "autopilot" ? (
+                  /* Autopilot: frequency only */
                   <div>
                     <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                     <select
@@ -512,52 +523,73 @@ const NewArticle = () => {
                         <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={planCount}
-                      onChange={(e) => setPlanCount(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Période</label>
-                    <select
-                      value={planPeriod}
-                      onChange={(e) => setPlanPeriod(e.target.value as PeriodUnit)}
-                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {PERIOD_OPTIONS.map((p) => (
-                        <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {(() => {
-                  const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
-                  return previewCount > 0 ? (
                     <div className="text-xs text-primary font-mono mt-2">
-                      → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                      → {AUTOPILOT_TOPIC_COUNTS[planFrequency]} sujets seront générés pour le premier lot
                     </div>
-                  ) : null;
-                })()}
+                  </div>
+                ) : (
+                  /* Auto (campaign): frequency + period */
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                        <select
+                          value={planFrequency}
+                          onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {FREQUENCY_OPTIONS.map((f) => (
+                            <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={planCount}
+                          onChange={(e) => setPlanCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Période</label>
+                        <select
+                          value={planPeriod}
+                          onChange={(e) => setPlanPeriod(e.target.value as PeriodUnit)}
+                          className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {PERIOD_OPTIONS.map((p) => (
+                            <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const previewCount = calculateScheduledDates(planFrequency, planCount, planPeriod).length;
+                      return previewCount > 0 ? (
+                        <div className="text-xs text-primary font-mono mt-2">
+                          → {previewCount} sujet{previewCount > 1 ? "s" : ""} seront générés
+                        </div>
+                      ) : null;
+                    })()}
+                  </>
+                )}
               </div>
             )}
 
             {/* Date for custom mode or start date for auto */}
-            <div className={isAutoMode ? "" : "grid grid-cols-2 gap-4"}>
+            <div className={isBatchMode ? "" : "grid grid-cols-2 gap-4"}>
               <div>
                 <label className="text-xs text-muted-foreground font-mono mb-1.5 block">
-                  {isAutoMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
+                  {isBatchMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
                 </label>
                 <input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-              {!isAutoMode && (
+              {!isBatchMode && (
                 <div>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
                   <select value="once" disabled className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
@@ -571,7 +603,7 @@ const NewArticle = () => {
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
-              {isAutoMode ? (
+              {isBatchMode ? (
                 <><Sparkles className="w-4 h-4" /> Générer les sujets</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> Générer l'article</>
@@ -582,7 +614,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3 Auto: Topic review */}
-      {step === 3 && isAutoMode && (
+      {step === 3 && isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {topicsLoading ? "Génération des sujets..." : "Valider les sujets"}
@@ -689,7 +721,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 4 Auto: Batch generation */}
-      {step === 4 && isAutoMode && (
+      {step === 4 && isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {batchGenerating ? "Rédaction en cours..." : batchCompleted.length > 0 ? "Génération terminée !" : "Lancer la rédaction"}
@@ -783,7 +815,7 @@ const NewArticle = () => {
       )}
 
       {/* Step 3: Custom mode - single article preview */}
-      {step === 3 && !isAutoMode && (
+      {step === 3 && !isBatchMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isGenerating ? "Génération en cours..." : "Aperçu & Confirmation"}
