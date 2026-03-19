@@ -11,10 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 const getImageUrl = (article: { title: string; image_url: string | null }) =>
-  article.image_url ||
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    article.title + ", professional photography, high quality"
-  )}?width=600&height=400&nologo=true`;
+  article.image_url || `/placeholder.svg`;
 
 const SiteDashboard = () => {
   const { siteId } = useParams<{ siteId: string }>();
@@ -151,12 +148,15 @@ const SiteDashboard = () => {
                 >
                   <div className="flex">
                     {/* Image */}
-                    <div className="w-[200px] shrink-0">
+                    <div className="w-[200px] shrink-0 bg-muted">
                       <img
                         src={imageUrl}
                         alt={article.title}
                         className="w-full h-full object-cover min-h-[180px]"
                         loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/placeholder.svg";
+                        }}
                       />
                     </div>
 
