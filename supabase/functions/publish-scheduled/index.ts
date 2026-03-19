@@ -73,12 +73,17 @@ serve(async (req) => {
       if (article.frequency && article.frequency !== "once" && article.scheduled_at) {
         const nextDate = computeNextDate(article.scheduled_at, article.frequency);
         if (nextDate) {
-          const { error: insertError } = await supabase.from("articles").insert({
+          // Generate a placeholder title indicating this needs AI regeneration
+          const placeholderTitle = `[À générer] ${article.category || article.title}`;
+          const nextSlug = `${(article.category || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${nextDate.getTime()}`;
+
+          const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
             site_id: article.site_id,
-            title: article.title,
-            slug: article.slug + "-" + nextDate.getTime(),
-            content: null, // Will need AI regeneration
+            title: placeholderTitle,
+            slug: nextSlug,
+            content: null,
             excerpt: null,
+            image_url: null,
             mode: article.mode,
             status: "scheduled",
             scheduled_at: nextDate.toISOString(),
@@ -87,12 +92,107 @@ serve(async (req) => {
             instructions: article.instructions,
             tone: article.tone,
             keywords: article.keywords,
-          });
+          }).select().single();
 
           if (insertError) {
             console.error(`Error creating next occurrence for ${article.id}:`, insertError);
-          } else {
-            console.log(`Next occurrence scheduled for ${nextDate.toISOString()}`);
+          } else if (newArticle) {
+            console.log(`Next occurrence scheduled for ${nextDate.toISOString()}, triggering AI generation...`);
+
+            // Get site info for AI generation
+            const { data: siteInfo } = await supabase
+              .from("sites")
+              .select("name, niche, description, url")
+              .eq("id", article.site_id)
+              .single();
+
+            if (siteInfo) {
+              // Trigger AI article generation for the new occurrence
+              try {
+                const genResp = await fetch(`${supabaseUrl}/functions/v1/generate-article`, {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${serviceRoleKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    mode: "auto",
+                    siteName: siteInfo.name,
+                    siteNiche: siteInfo.niche || "",
+                    siteDescription: siteInfo.description || "",
+                    siteUrl: siteInfo.url || "",
+                    category: article.category || "",
+                    topic: `Un nouveau sujet pertinent dans la catégorie "${article.category || siteInfo.niche || "blog"}" — différent de "${article.title}"`,
+                  }),
+                });
+
+                if (genResp.ok && genResp.body) {
+                  const reader = genResp.body.getReader();
+                  const decoder = new TextDecoder();
+                  let fullText = "";
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    for (const line of chunk.split("\n")) {
+                      if (!line.startsWith("data: ")) continue;
+                      const jsonStr = line.slice(6).trim();
+                      if (jsonStr === "[DONE]") continue;
+                      try {
+                        const p = JSON.parse(jsonStr);
+                        const c = p.choices?.[0]?.delta?.content;
+                        if (c) fullText += c;
+                      } catch {}
+                    }
+                  }
+
+                  const titleMatch = fullText.match(/TITRE:\s*(.+)/);
+                  const excerptMatch = fullText.match(/EXTRAIT:\s*(.+)/);
+                  const contentMatch = fullText.match(/CONTENU:\s*([\s\S]*)/);
+
+                  const genUpdate: Record<string, string> = {};
+                  if (titleMatch?.[1]) genUpdate.title = titleMatch[1].trim();
+                  if (excerptMatch?.[1]) genUpdate.excerpt = excerptMatch[1].trim();
+                  if (contentMatch?.[1]) genUpdate.content = contentMatch[1].trim();
+
+                  // Update slug based on new title
+                  if (genUpdate.title) {
+                    genUpdate.slug = genUpdate.title
+                      .toLowerCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                      .replace(/[^a-z0-9]+/g, "-")
+                      .replace(/(^-|-$)/g, "") + `-${nextDate.getTime()}`;
+                  }
+
+                  if (Object.keys(genUpdate).length > 0) {
+                    await supabase.from("articles").update(genUpdate).eq("id", newArticle.id);
+                    console.log(`AI generated new article: "${genUpdate.title || placeholderTitle}"`);
+                  }
+
+                  // Trigger image generation
+                  try {
+                    await fetch(`${supabaseUrl}/functions/v1/generate-article-image`, {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${serviceRoleKey}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        articleId: newArticle.id,
+                        title: genUpdate.title || placeholderTitle,
+                        category: article.category || "",
+                        siteName: siteInfo.name,
+                      }),
+                    });
+                    console.log(`Image generation triggered for ${newArticle.id}`);
+                  } catch (imgErr) {
+                    console.error(`Image generation failed for ${newArticle.id}:`, imgErr);
+                  }
+                }
+              } catch (genErr) {
+                console.error(`AI generation failed for next occurrence:`, genErr);
+              }
+            }
           }
         }
       }
