@@ -134,7 +134,7 @@ const SiteDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(upcoming.length > 0 ? [...upcoming, ...published] : siteArticles).map((article) => {
-              const date = article.published_at || article.scheduled_at || article.created_at;
+              const articleDate = article.published_at || article.scheduled_at || article.created_at;
               const isPublished = article.status === "published";
               const isScheduled = article.status === "scheduled";
 
@@ -180,7 +180,7 @@ const SiteDashboard = () => {
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
                         <Calendar className="w-3 h-3" />
                         <span className="font-mono" style={{ color: siteColor }}>
-                          {format(parseISO(date), "dd/MM/yyyy HH:mm", { locale: fr })}
+                          {format(parseISO(articleDate), "dd/MM/yyyy HH:mm", { locale: fr })}
                         </span>
                       </div>
 
