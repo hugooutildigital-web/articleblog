@@ -134,7 +134,6 @@ const SiteDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(upcoming.length > 0 ? [...upcoming, ...published] : siteArticles).map((article) => {
-              const imageUrl = getImageUrl(article);
               const date = article.published_at || article.scheduled_at || article.created_at;
               const isPublished = article.status === "published";
               const isScheduled = article.status === "scheduled";
