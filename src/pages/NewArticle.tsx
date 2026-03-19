@@ -381,9 +381,53 @@ const NewArticle = () => {
     );
   };
 
+  // Autopilot: create a single placeholder article and activate
+  const [autopilotCreating, setAutopilotCreating] = useState(false);
+
+  const handleActivateAutopilot = async () => {
+    if (!selectedSite) return toast.error("Sélectionnez un site");
+    setAutopilotCreating(true);
+    try {
+      const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
+      await new Promise<void>((resolve, reject) => {
+        createArticle.mutate(
+          {
+            site_id: selectedSite,
+            title: `[Autopilot] Article à générer`,
+            slug: `autopilot-${Date.now()}`,
+            mode: "autopilot",
+            status: "scheduled",
+            scheduled_at: startDate.toISOString(),
+            frequency: frequencyLabel,
+            category: category || null,
+            tone: tone || null,
+            keywords: keywords ? keywords.split(",").map((k) => k.trim()) : null,
+            instructions: instructions || null,
+          },
+          {
+            onSuccess: () => {
+              toast.success("Autopilote activé ! Le premier article sera généré automatiquement.");
+              resolve();
+              navigate("/articles");
+            },
+            onError: (err) => reject(err),
+          }
+        );
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'activation");
+    } finally {
+      setAutopilotCreating(false);
+    }
+  };
+
   const goToStep3 = () => {
+    if (mode === "autopilot") {
+      setStep(3); // autopilot confirmation
+      return;
+    }
     setStep(3);
-    if (isBatchMode) {
+    if (mode === "auto") {
       handleGenerateTopics();
     } else if (mode === "custom" && !generatedRaw) {
       handleGenerateSingle();
@@ -395,7 +439,7 @@ const NewArticle = () => {
     setStep(4);
   };
 
-  const totalSteps = isBatchMode ? 4 : 3;
+  const totalSteps = mode === "auto" ? 4 : 3;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
