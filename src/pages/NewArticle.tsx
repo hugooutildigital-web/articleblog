@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2 } from "lucide-react";
+import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, Calendar, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
+import {
+  calculateScheduledDates,
+  formatDateFr,
+  FREQUENCY_LABELS,
+  PERIOD_LABELS,
+  FREQUENCY_OPTIONS,
+  PERIOD_OPTIONS,
+  type Frequency,
+  type PeriodUnit,
+} from "@/lib/scheduling";
 
 type Mode = "auto" | "custom" | null;
 
@@ -71,9 +81,8 @@ async function streamArticle({
     }
   }
 
-  // Flush remaining
   if (buffer.trim()) {
-    for (let raw of buffer.split("\n")) {
+    for (const raw of buffer.split("\n")) {
       if (!raw || raw.startsWith(":") || raw.trim() === "") continue;
       if (!raw.startsWith("data: ")) continue;
       const jsonStr = raw.slice(6).trim();
@@ -111,12 +120,23 @@ const NewArticle = () => {
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
-  const [frequency, setFrequency] = useState("once");
   const [category, setCategory] = useState("");
   const [tone, setTone] = useState("");
   const [keywords, setKeywords] = useState("");
 
-  // AI generation state
+  // Batch planning (auto mode)
+  const [planFrequency, setPlanFrequency] = useState<Frequency>("weekly");
+  const [planCount, setPlanCount] = useState(3);
+  const [planPeriod, setPlanPeriod] = useState<PeriodUnit>("month");
+  const [planConfirmed, setPlanConfirmed] = useState(false);
+
+  // Batch generation state
+  const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchCompleted, setBatchCompleted] = useState<string[]>([]);
+
+  // Single article generation state (custom mode)
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRaw, setGeneratedRaw] = useState("");
   const [generationDone, setGenerationDone] = useState(false);
@@ -124,7 +144,14 @@ const NewArticle = () => {
   const selectedSiteData = sites.find((s) => s.id === selectedSite);
   const parsed = generationDone ? parseGeneratedContent(generatedRaw) : null;
 
-  const handleGenerate = async () => {
+  // Calculate scheduled dates for batch
+  const scheduledDates = useMemo(() => {
+    if (mode !== "auto") return [];
+    const startDate = scheduledDate ? new Date(scheduledDate) : new Date();
+    return calculateScheduledDates(planFrequency, planCount, planPeriod, startDate);
+  }, [mode, planFrequency, planCount, planPeriod, scheduledDate]);
+
+  const handleGenerateSingle = async () => {
     setIsGenerating(true);
     setGeneratedRaw("");
     setGenerationDone(false);
@@ -155,7 +182,89 @@ const NewArticle = () => {
     }
   };
 
-  const handleCreate = () => {
+  // Generate a single article in the batch, returns parsed content
+  const generateOneArticle = async (): Promise<ReturnType<typeof parseGeneratedContent>> => {
+    return new Promise((resolve, reject) => {
+      let raw = "";
+      streamArticle({
+        body: {
+          mode: "auto",
+          siteName: selectedSiteData?.name || "",
+          siteNiche: selectedSiteData?.niche || "",
+          siteDescription: selectedSiteData?.description || "",
+          siteUrl: selectedSiteData?.url || "",
+          category,
+        },
+        onDelta: (chunk) => { raw += chunk; },
+        onDone: () => resolve(parseGeneratedContent(raw)),
+      }).catch(reject);
+    });
+  };
+
+  const handleBatchGenerate = async () => {
+    if (!selectedSite || scheduledDates.length === 0) return;
+
+    setBatchGenerating(true);
+    setBatchProgress(0);
+    setBatchTotal(scheduledDates.length);
+    setBatchCompleted([]);
+
+    for (let i = 0; i < scheduledDates.length; i++) {
+      try {
+        setBatchProgress(i + 1);
+        const content = await generateOneArticle();
+        const finalTitle = content.title || `Article ${i + 1}`;
+
+        await new Promise<void>((resolve, reject) => {
+          createArticle.mutate(
+            {
+              site_id: selectedSite,
+              title: finalTitle,
+              slug: slugify(finalTitle) + `-${Date.now()}`,
+              mode: "auto",
+              status: "scheduled",
+              scheduled_at: scheduledDates[i].toISOString(),
+              frequency: planFrequency,
+              category: category || null,
+              content: content.content || null,
+              excerpt: content.excerpt || null,
+            },
+            {
+              onSuccess: (data) => {
+                setBatchCompleted((prev) => [...prev, finalTitle]);
+
+                // Fire & forget image generation
+                fetch(GENERATE_IMAGE_URL, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    articleId: data.id,
+                    title: finalTitle,
+                    siteName: selectedSiteData?.name || "",
+                    siteNiche: selectedSiteData?.niche || "",
+                  }),
+                }).catch(() => {});
+
+                resolve();
+              },
+              onError: (err) => reject(err),
+            }
+          );
+        });
+      } catch (e) {
+        toast.error(`Erreur article ${i + 1}: ${e instanceof Error ? e.message : "Erreur"}`);
+      }
+    }
+
+    setBatchGenerating(false);
+    toast.success(`${scheduledDates.length} articles générés et planifiés !`);
+    setTimeout(() => navigate("/articles"), 1500);
+  };
+
+  const handleCreateSingle = () => {
     if (!selectedSite) return toast.error("Sélectionnez un site");
     const finalTitle = parsed?.title || title || "Article auto-généré";
 
@@ -167,7 +276,7 @@ const NewArticle = () => {
         mode: mode ?? "custom",
         status: scheduledDate ? "scheduled" : "draft",
         scheduled_at: scheduledDate ? new Date(scheduledDate).toISOString() : null,
-        frequency,
+        frequency: "once",
         instructions: instructions || null,
         category: category || null,
         content: parsed?.content || null,
@@ -180,7 +289,6 @@ const NewArticle = () => {
           toast.success("Article planifié !");
           navigate("/articles");
 
-          // Fire & forget image generation
           fetch(GENERATE_IMAGE_URL, {
             method: "POST",
             headers: {
@@ -193,11 +301,7 @@ const NewArticle = () => {
               siteName: selectedSiteData?.name || "",
               siteNiche: selectedSiteData?.niche || "",
             }),
-          }).then(() => {
-            toast.success("Image générée !");
-          }).catch(() => {
-            // silent fail - image is optional
-          });
+          }).catch(() => {});
         },
         onError: () => toast.error("Erreur lors de la création"),
       }
@@ -206,8 +310,10 @@ const NewArticle = () => {
 
   const goToStep3 = () => {
     setStep(3);
-    if (!generatedRaw) handleGenerate();
+    if (mode === "custom" && !generatedRaw) handleGenerateSingle();
   };
+
+  const isAutoMode = mode === "auto";
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
@@ -298,55 +404,217 @@ const NewArticle = () => {
               <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: SEO, Design, Tech..." className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Auto mode: batch planning */}
+            {isAutoMode && (
+              <div className="space-y-4 border border-primary/20 rounded-lg p-4 bg-primary/5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Planification automatique</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                    <select
+                      value={planFrequency}
+                      onChange={(e) => setPlanFrequency(e.target.value as Frequency)}
+                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {FREQUENCY_OPTIONS.map((f) => (
+                        <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Nombre</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={planCount}
+                      onChange={(e) => setPlanCount(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Période</label>
+                    <select
+                      value={planPeriod}
+                      onChange={(e) => setPlanPeriod(e.target.value as PeriodUnit)}
+                      className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {PERIOD_OPTIONS.map((p) => (
+                        <option key={p} value={p}>{PERIOD_LABELS[p]}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {scheduledDates.length > 0 && (
+                  <div className="text-xs text-primary font-mono mt-2">
+                    → {scheduledDates.length} article{scheduledDates.length > 1 ? "s" : ""} seront générés
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Date for custom mode or start date for auto */}
+            <div className={isAutoMode ? "" : "grid grid-cols-2 gap-4"}>
               <div>
-                <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Date & heure</label>
+                <label className="text-xs text-muted-foreground font-mono mb-1.5 block">
+                  {isAutoMode ? "Date de début (optionnel, par défaut maintenant)" : "Date & heure"}
+                </label>
                 <input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
-                <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                  <option value="once">Une seule fois</option>
-                  <option value="daily">Quotidien</option>
-                  <option value="weekly">Hebdomadaire</option>
-                  <option value="biweekly">Bimensuel</option>
-                  <option value="monthly">Mensuel</option>
-                </select>
-              </div>
+              {!isAutoMode && (
+                <div>
+                  <label className="text-xs text-muted-foreground font-mono mb-1.5 block">Fréquence</label>
+                  <select value="once" disabled className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                    <option value="once">Une seule fois</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
-              <Sparkles className="w-4 h-4" /> Générer l'article
+              {isAutoMode ? (
+                <><Calendar className="w-4 h-4" /> Voir le plan</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Générer l'article</>
+              )}
             </Button>
           </div>
         </div>
       )}
 
-      {/* Step 3: AI Generation & Preview */}
-      {step === 3 && (
+      {/* Step 3: Planning summary (auto) or Preview (custom) */}
+      {step === 3 && isAutoMode && !batchGenerating && !batchCompleted.length && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-semibold text-foreground">Résumé de planification</h2>
+
+          <div className="bg-card border border-border rounded-lg p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {scheduledDates.length} article{scheduledDates.length > 1 ? "s" : ""} seront générés et planifiés
+                </p>
+                {scheduledDates.length >= 2 && (
+                  <p className="text-xs text-muted-foreground font-mono">
+                    du {formatDateFr(scheduledDates[0])} au {formatDateFr(scheduledDates[scheduledDates.length - 1])}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground font-mono mb-3">Dates de publication prévues :</p>
+              <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-2">
+                {scheduledDates.map((date, i) => (
+                  <div key={i} className="flex items-center gap-3 py-1.5 px-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                    <span className="text-xs font-mono text-primary w-6 text-right">{i + 1}.</span>
+                    <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm text-foreground font-mono">{formatDateFr(date)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-border pt-4">
+              <Bot className="w-4 h-4" />
+              <span>Chaque article sera généré automatiquement par l'IA avec un sujet unique adapté à <strong className="text-foreground">{selectedSiteData?.name}</strong></span>
+            </div>
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="ghost" onClick={() => setStep(2)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+            <Button variant="emerald" className="gap-2" onClick={handleBatchGenerate}>
+              <Sparkles className="w-4 h-4" />
+              Lancer la génération ({scheduledDates.length} articles)
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch generation progress */}
+      {step === 3 && isAutoMode && (batchGenerating || batchCompleted.length > 0) && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-semibold text-foreground">
+            {batchGenerating ? "Génération en cours..." : "Génération terminée !"}
+          </h2>
+
+          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+            {/* Progress bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-mono text-muted-foreground">
+                <span>Progression</span>
+                <span>{batchProgress} / {batchTotal}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${(batchProgress / batchTotal) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Completed articles */}
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+              {batchCompleted.map((title, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-primary/5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="text-sm text-foreground truncate">{title}</span>
+                  <span className="text-xs text-muted-foreground font-mono ml-auto shrink-0">
+                    {formatDateFr(scheduledDates[i])}
+                  </span>
+                </div>
+              ))}
+              {batchGenerating && (
+                <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/50">
+                  <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
+                  <span className="text-sm text-muted-foreground">Génération de l'article {batchProgress}...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!batchGenerating && (
+            <div className="flex justify-end">
+              <Button variant="emerald" onClick={() => navigate("/articles")} className="gap-2">
+                <ArrowRight className="w-4 h-4" /> Voir les articles
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 3: Custom mode - single article preview */}
+      {step === 3 && !isAutoMode && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {isGenerating ? "Génération en cours..." : "Aperçu & Confirmation"}
           </h2>
 
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-            {/* Meta info */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
               <div className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4" />
                 {scheduledDate || "Date non définie"}
               </div>
               <span>·</span>
-              <span>{frequency === "once" ? "Publication unique" : `Récurrent (${frequency})`}</span>
+              <span>Publication unique</span>
               <span>·</span>
               <span>{selectedSiteData?.name}</span>
             </div>
 
             <div className="border-t border-border pt-4">
-              {/* Generation indicator */}
               <div className="flex items-center gap-2 mb-4">
                 {isGenerating ? (
                   <Loader2 className="w-4 h-4 text-primary animate-spin" />
@@ -354,15 +622,10 @@ const NewArticle = () => {
                   <Sparkles className="w-4 h-4 text-primary" />
                 )}
                 <span className="text-xs text-primary font-mono">
-                  {isGenerating
-                    ? "L'IA rédige votre article en temps réel..."
-                    : mode === "auto"
-                    ? "Article généré automatiquement"
-                    : "Article personnalisé généré"}
+                  {isGenerating ? "L'IA rédige votre article en temps réel..." : "Article personnalisé généré"}
                 </span>
               </div>
 
-              {/* Streaming content */}
               {generatedRaw ? (
                 <div className="space-y-3">
                   {parsed && generationDone ? (
@@ -400,14 +663,14 @@ const NewArticle = () => {
             </Button>
             <div className="flex gap-2">
               {generationDone && (
-                <Button variant="surface" onClick={handleGenerate} className="gap-2">
+                <Button variant="surface" onClick={handleGenerateSingle} className="gap-2">
                   <Sparkles className="w-4 h-4" /> Régénérer
                 </Button>
               )}
               <Button
                 variant="emerald"
                 className="gap-2"
-                onClick={handleCreate}
+                onClick={handleCreateSingle}
                 disabled={createArticle.isPending || isGenerating || !generationDone}
               >
                 <Sparkles className="w-4 h-4" />
