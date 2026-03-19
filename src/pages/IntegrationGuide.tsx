@@ -88,6 +88,7 @@ const IntegrationGuide = () => {
   const { data: sites = [], isLoading } = useSites();
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [promptVisible, setPromptVisible] = useState(true);
 
   const selectedSite = sites.find((s) => s.id === selectedSiteId) ?? sites[0] ?? null;
 
@@ -119,27 +120,29 @@ const IntegrationGuide = () => {
         <>
           {/* Site Selector */}
           <div className="relative">
-            <button
-              onClick={() => setSelectorOpen(!selectorOpen)}
-              className="w-full flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
-                  style={{
-                    backgroundColor: (selectedSite?.color ?? "#00e87a") + "22",
-                    color: selectedSite?.color ?? "#00e87a",
-                  }}
-                >
-                  {selectedSite?.name.charAt(0)}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectorOpen(!selectorOpen)}
+                className="flex-1 flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
+                    style={{
+                      backgroundColor: (selectedSite?.color ?? "#00e87a") + "22",
+                      color: selectedSite?.color ?? "#00e87a",
+                    }}
+                  >
+                    {selectedSite?.name.charAt(0)}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-display text-sm font-semibold text-foreground">{selectedSite?.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{selectedSite?.url}</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="font-display text-sm font-semibold text-foreground">{selectedSite?.name}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{selectedSite?.url}</p>
-                </div>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
-            </button>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
 
             {selectorOpen && sites.length > 1 && (
               <div className="absolute z-10 mt-1 w-full bg-card border border-border rounded-lg shadow-lg overflow-hidden">
@@ -172,16 +175,24 @@ const IntegrationGuide = () => {
 
           {selectedSite && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPromptVisible(!promptVisible)}
+                className="flex items-center gap-2 group"
+              >
                 <Rocket className="w-4 h-4 text-primary" />
                 <h2 className="font-display text-base font-semibold text-foreground">
                   Prompt de configuration pour {selectedSite.name}
                 </h2>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Copiez ce prompt et collez-le dans le chat Lovable du projet <strong>{selectedSite.name}</strong>. Il configure la connexion à la base de données, la mise en page blog et les corrections de bugs.
-              </p>
-              <CopyBlock prompt={getSetupPrompt(selectedSite.id, selectedSite.name)} />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${promptVisible ? "rotate-180" : ""}`} />
+              </button>
+              {promptVisible && (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Copiez ce prompt et collez-le dans le chat Lovable du projet <strong>{selectedSite.name}</strong>. Il configure la connexion à la base de données, la mise en page blog et les corrections de bugs.
+                  </p>
+                  <CopyBlock prompt={getSetupPrompt(selectedSite.id, selectedSite.name)} />
+                </>
+              )}
             </div>
           )}
         </>
