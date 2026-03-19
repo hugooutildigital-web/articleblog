@@ -626,8 +626,10 @@ const NewArticle = () => {
           <div className="flex justify-between">
             <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4 mr-2" /> Retour</Button>
             <Button variant="emerald" disabled={!selectedSite} onClick={goToStep3} className="gap-2">
-              {isBatchMode ? (
+              {mode === "auto" ? (
                 <><Sparkles className="w-4 h-4" /> Générer les sujets</>
+              ) : mode === "autopilot" ? (
+                <><Zap className="w-4 h-4" /> Activer l'autopilote</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> Générer l'article</>
               )}
@@ -636,8 +638,81 @@ const NewArticle = () => {
         </div>
       )}
 
+      {/* Step 3 Autopilot: Confirmation */}
+      {step === 3 && mode === "autopilot" && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-semibold text-foreground">Confirmer l'autopilote</h2>
+
+          <div className="bg-card border border-border rounded-lg p-6 space-y-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Zap className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Mode autopilote continu</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{selectedSiteData?.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Fréquence</span>
+                <span className="text-foreground font-mono">{frequencyLabel}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Premier article</span>
+                <span className="text-foreground font-mono">
+                  {scheduledDate ? formatDateFr(new Date(scheduledDate)) : "Dès maintenant"}
+                </span>
+              </div>
+              {category && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Catégorie</span>
+                  <span className="text-foreground font-mono">{category}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+              <p className="text-xs font-semibold text-primary">Comment ça marche</p>
+              <ul className="text-xs text-muted-foreground space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">1.</span>
+                  <span>L'IA analyse les articles existants de votre site pour éviter les répétitions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">2.</span>
+                  <span>Elle génère un sujet unique et rédige l'article complet</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">3.</span>
+                  <span>L'article passe une vérification qualité et est corrigé automatiquement si besoin</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">4.</span>
+                  <span>Une fois publié, le prochain article est automatiquement programmé</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="ghost" onClick={() => setStep(2)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+            <Button variant="emerald" className="gap-2" onClick={handleActivateAutopilot} disabled={autopilotCreating}>
+              {autopilotCreating ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Activation...</>
+              ) : (
+                <><Zap className="w-4 h-4" /> Activer l'autopilote</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Step 3 Auto: Topic review */}
-      {step === 3 && isBatchMode && (
+      {step === 3 && mode === "auto" && (
         <div className="space-y-6">
           <h2 className="font-display text-lg font-semibold text-foreground">
             {topicsLoading ? "Génération des sujets..." : "Valider les sujets"}
