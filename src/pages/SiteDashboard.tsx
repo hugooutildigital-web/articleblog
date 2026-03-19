@@ -14,7 +14,10 @@ import SiteArticleThumbnail from "@/components/SiteArticleThumbnail";
 import ArticlePreviewModal from "@/components/ArticlePreviewModal";
 import { toast } from "sonner";
 
+type TabView = "scheduled" | "published";
+
 const SiteDashboard = () => {
+  const [activeTab, setActiveTab] = useState<TabView>("scheduled");
   const { siteId } = useParams<{ siteId: string }>();
   const navigate = useNavigate();
   const { data: sites = [], isLoading: loadingSites } = useSites();
@@ -243,17 +246,37 @@ const SiteDashboard = () => {
 
       {/* Article Cards */}
       <div>
-        <h2 className="font-display text-lg font-semibold text-foreground mb-4">
-          {upcoming.length > 0 ? "Prochains articles" : "Tous les articles"}
-        </h2>
+        <div className="flex items-center gap-2 mb-4">
+          <Button
+            variant={activeTab === "scheduled" ? "emerald" : "surface"}
+            size="sm"
+            className="text-xs gap-1.5"
+            onClick={() => setActiveTab("scheduled")}
+          >
+            <Timer className="w-3.5 h-3.5" />
+            Planifiés ({scheduled.length})
+          </Button>
+          <Button
+            variant={activeTab === "published" ? "emerald" : "surface"}
+            size="sm"
+            className="text-xs gap-1.5"
+            onClick={() => setActiveTab("published")}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Publiés ({published.length})
+          </Button>
+        </div>
 
-        {siteArticles.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-12">
-            Aucun article pour ce site.
-          </p>
-        ) : (
+        {(() => {
+          const displayArticles = activeTab === "scheduled" ? upcoming : published;
+          if (displayArticles.length === 0) return (
+            <p className="text-sm text-muted-foreground text-center py-12">
+              {activeTab === "scheduled" ? "Aucun article planifié." : "Aucun article publié."}
+            </p>
+          );
+          return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(upcoming.length > 0 ? [...upcoming, ...published] : siteArticles).map((article) => {
+            {displayArticles.map((article) => {
               const articleDate = article.published_at || article.scheduled_at || article.created_at;
               const isPublished = article.status === "published";
               const isScheduled = article.status === "scheduled";
@@ -266,7 +289,6 @@ const SiteDashboard = () => {
                   <div className="flex">
                     <SiteArticleThumbnail title={article.title} imageUrl={article.image_url} />
 
-                    {/* Content */}
                     <div className="flex-1 p-4 flex flex-col min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         {article.category && (
@@ -352,7 +374,8 @@ const SiteDashboard = () => {
               );
             })}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Preview Modal */}
