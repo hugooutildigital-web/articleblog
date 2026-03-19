@@ -396,7 +396,7 @@ const NewArticle = () => {
 
   const goToStep3 = () => {
     setStep(3);
-    if (mode === "auto") {
+    if (isBatchMode) {
       handleGenerateTopics();
     } else if (mode === "custom" && !generatedRaw) {
       handleGenerateSingle();
@@ -408,8 +408,7 @@ const NewArticle = () => {
     setStep(4);
   };
 
-  const isAutoMode = mode === "auto";
-  const totalSteps = isAutoMode ? 4 : 3;
+  const totalSteps = isBatchMode ? 4 : 3;
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
