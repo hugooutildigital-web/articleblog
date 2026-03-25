@@ -206,13 +206,14 @@ const SiteDashboard = () => {
               <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                 ⚡ Autopilote actif
                 <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/20 text-[10px]">
-                  {autopilotArticles.length} en file
+                  {autopilotPublished.length} publié{autopilotPublished.length > 1 ? "s" : ""}
+                  {autopilotScheduled.length > 0 ? ` · ${autopilotScheduled.length} en file` : ""}
                 </Badge>
               </p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                Prochain article {nextAutopilot?.scheduled_at
-                  ? format(parseISO(nextAutopilot.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
-                  : "bientôt"}
+                {hasAutopilotPending
+                  ? `Prochain article ${format(parseISO(nextAutopilot!.scheduled_at!), "dd MMM yyyy · HH:mm", { locale: fr })}`
+                  : "⚠️ Aucun article en file — relancez l'autopilote"}
               </p>
             </div>
             <Button
