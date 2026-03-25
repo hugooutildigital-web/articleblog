@@ -250,7 +250,7 @@ const SiteDashboard = () => {
                   }`}
                   onClick={async () => {
                     if (currentFrequency === opt.value) return;
-                    const ids = autopilotArticles.map((a) => a.id);
+                    const ids = allAutopilotArticles.map((a) => a.id);
                     const promises = ids.map((id) =>
                       supabase.from("articles").update({ frequency: opt.value }).eq("id", id)
                     );
