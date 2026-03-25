@@ -4,13 +4,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft, Calendar, Clock, Tag, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMemo } from "react";
-
-const getImageUrl = (prompt: string, width = 1200, height = 630) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', professional photography, high quality')}?width=${width}&height=${height}&nologo=true`;
-
-const getMidImageUrl = (prompt: string) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', detailed illustration, clean design')}?width=1000&height=560&nologo=true`;
+import { useMemo, useState } from "react";
 
 const estimateReadTime = (content: string | null) => {
   if (!content) return 3;
@@ -20,6 +14,7 @@ const estimateReadTime = (content: string | null) => {
 
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [heroError, setHeroError] = useState(false);
   const { data: articles = [], isLoading } = useAllArticles();
   const { data: sites = [] } = useSites();
 
@@ -66,18 +61,22 @@ const BlogArticle = () => {
   }
 
   const readTime = estimateReadTime(article.content);
-  const heroImage = article.image_url || getImageUrl(article.title);
-  const midImage = getMidImageUrl(`${article.title} ${article.category || ""}`);
+  const heroImage = (!heroError && article.image_url) ? article.image_url : null;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Image */}
-      <div className="relative w-full h-[450px] overflow-hidden">
-        <img
-          src={heroImage}
-          alt={article.title}
-          className="w-full h-full object-cover"
-        />
+      <div className={`relative w-full ${heroImage ? "h-[450px]" : "h-[250px]"} overflow-hidden`}>
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt={article.title}
+            className="w-full h-full object-cover"
+            onError={() => setHeroError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-muted" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
         {/* Back button */}
@@ -147,19 +146,9 @@ const BlogArticle = () => {
           />
         )}
 
-        {/* Mid-article illustration */}
+        {/* Separator between halves */}
         {secondHalf && (
-          <figure className="my-12 -mx-6 md:mx-0 rounded-xl overflow-hidden">
-            <img
-              src={midImage}
-              alt={`Illustration pour ${article.title}`}
-              className="w-full h-auto object-cover rounded-xl"
-              loading="lazy"
-            />
-            <figcaption className="text-center text-xs text-muted-foreground mt-3 font-mono">
-              Illustration générée pour cet article
-            </figcaption>
-          </figure>
+          <hr className="my-12 border-border" />
         )}
 
         {/* Second half of content */}
