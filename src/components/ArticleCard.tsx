@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Article, Site } from "@/hooks/useData";
 import { useDeleteArticle, useUpdateArticle } from "@/hooks/useData";
-import { ExternalLink, Pencil, Trash2, Copy, Clock, Bot, PenLine, Rocket, Eye } from "lucide-react";
+import { ExternalLink, Pencil, Trash2, Copy, Clock, Bot, PenLine, Rocket, Eye, Zap } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
