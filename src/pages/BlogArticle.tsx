@@ -4,13 +4,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft, Calendar, Clock, Tag, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMemo } from "react";
-
-const getImageUrl = (prompt: string, width = 1200, height = 630) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', professional photography, high quality')}?width=${width}&height=${height}&nologo=true`;
-
-const getMidImageUrl = (prompt: string) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', detailed illustration, clean design')}?width=1000&height=560&nologo=true`;
+import { useMemo, useState } from "react";
 
 const estimateReadTime = (content: string | null) => {
   if (!content) return 3;
