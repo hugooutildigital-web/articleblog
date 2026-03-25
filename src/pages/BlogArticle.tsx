@@ -66,12 +66,17 @@ const BlogArticle = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Image */}
-      <div className="relative w-full h-[450px] overflow-hidden">
-        <img
-          src={heroImage}
-          alt={article.title}
-          className="w-full h-full object-cover"
-        />
+      <div className={`relative w-full ${heroImage ? "h-[450px]" : "h-[250px]"} overflow-hidden`}>
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt={article.title}
+            className="w-full h-full object-cover"
+            onError={() => setHeroError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-muted" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
         {/* Back button */}
