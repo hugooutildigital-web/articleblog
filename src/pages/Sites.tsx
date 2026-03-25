@@ -116,7 +116,7 @@ const Sites = () => {
           {sites.map((site) => {
             const siteArticles = articles.filter((a) => a.site_id === site.id && a.status === "published");
             const scheduledArticles = articles.filter((a) => a.site_id === site.id && a.status === "scheduled");
-            const autopilotArticles = articles.filter((a) => a.site_id === site.id && a.mode === "autopilot" && a.status === "scheduled");
+            const autopilotArticles = articles.filter((a) => a.site_id === site.id && a.mode === "autopilot");
             const isAutopilot = autopilotArticles.length > 0;
             const autopilotFrequency = autopilotArticles[0]?.frequency || "";
             const hasScheduled = scheduledArticles.length > 0;
