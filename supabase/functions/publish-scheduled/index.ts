@@ -278,9 +278,19 @@ async function scheduleNextRecurring(
  */
 function computeNextDateFromFrequency(currentDateStr: string, frequency: string): Date | null {
   const d = new Date(currentDateStr);
+  const f = frequency.toLowerCase().trim();
 
-  // Handle "Tous les X jour(s)/semaine(s)/mois"
-  const match = frequency.match(/tous les (\d+)\s+(jour|semaine|mois)/i);
+  // "Tous les jours" / "Toutes les jours" (no number = 1)
+  if (/tous?\s*les\s+jours?/i.test(f)) { d.setDate(d.getDate() + 1); return d; }
+
+  // "Toutes les semaines" (no number = 1)
+  if (/toutes?\s*les\s+semaines?/i.test(f)) { d.setDate(d.getDate() + 7); return d; }
+
+  // "Tous les mois" (no number = 1)
+  if (/tous?\s*les\s+mois/i.test(f)) { d.setMonth(d.getMonth() + 1); return d; }
+
+  // "Tous les X jour(s)/semaine(s)/mois"
+  const match = f.match(/tous?(?:es)?\s*les\s+(\d+)\s+(jour|semaine|mois)/i);
   if (match) {
     const val = parseInt(match[1]);
     const unit = match[2].toLowerCase();

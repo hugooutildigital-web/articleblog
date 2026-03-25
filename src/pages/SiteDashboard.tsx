@@ -43,12 +43,16 @@ const SiteDashboard = () => {
   const scheduled = siteArticles.filter((a) => a.status === "scheduled");
   const drafts = siteArticles.filter((a) => a.status === "draft");
 
-  const autopilotArticles = scheduled.filter((a) => a.mode === "autopilot");
-  const isAutopilotActive = autopilotArticles.length > 0;
-  const nextAutopilot = isAutopilotActive
-    ? [...autopilotArticles].sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))[0]
+  // Autopilot: check both scheduled AND published articles in autopilot mode
+  const autopilotScheduled = scheduled.filter((a) => a.mode === "autopilot");
+  const autopilotPublished = published.filter((a) => a.mode === "autopilot");
+  const allAutopilotArticles = [...autopilotScheduled, ...autopilotPublished];
+  const isAutopilotActive = allAutopilotArticles.length > 0;
+  const hasAutopilotPending = autopilotScheduled.length > 0;
+  const nextAutopilot = hasAutopilotPending
+    ? [...autopilotScheduled].sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))[0]
     : null;
-  const currentFrequency = nextAutopilot?.frequency || "";
+  const currentFrequency = (nextAutopilot?.frequency || autopilotPublished[0]?.frequency) || "";
 
   const frequencyOptions = [
     { label: "Tous les jours", value: "Tous les jours" },
@@ -202,13 +206,14 @@ const SiteDashboard = () => {
               <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                 ⚡ Autopilote actif
                 <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/20 text-[10px]">
-                  {autopilotArticles.length} en file
+                  {autopilotPublished.length} publié{autopilotPublished.length > 1 ? "s" : ""}
+                  {autopilotScheduled.length > 0 ? ` · ${autopilotScheduled.length} en file` : ""}
                 </Badge>
               </p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                Prochain article {nextAutopilot?.scheduled_at
-                  ? format(parseISO(nextAutopilot.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
-                  : "bientôt"}
+                {hasAutopilotPending
+                  ? `Prochain article ${format(parseISO(nextAutopilot!.scheduled_at!), "dd MMM yyyy · HH:mm", { locale: fr })}`
+                  : "⚠️ Aucun article en file — relancez l'autopilote"}
               </p>
             </div>
             <Button
@@ -216,7 +221,7 @@ const SiteDashboard = () => {
               size="sm"
               className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 shrink-0"
               onClick={async () => {
-                const ids = autopilotArticles.map((a) => a.id);
+                const ids = autopilotScheduled.map((a) => a.id);
                 const { error } = await supabase.from("articles").delete().in("id", ids);
                 if (error) {
                   toast.error("Erreur lors de la désactivation");
@@ -245,7 +250,7 @@ const SiteDashboard = () => {
                   }`}
                   onClick={async () => {
                     if (currentFrequency === opt.value) return;
-                    const ids = autopilotArticles.map((a) => a.id);
+                    const ids = allAutopilotArticles.map((a) => a.id);
                     const promises = ids.map((id) =>
                       supabase.from("articles").update({ frequency: opt.value }).eq("id", id)
                     );
