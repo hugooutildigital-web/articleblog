@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useAllArticles, useSites } from "@/hooks/useData";
+import { useAllArticles, useSites, useUpdateArticle } from "@/hooks/useData";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft, Calendar, Clock, Tag, User } from "lucide-react";
