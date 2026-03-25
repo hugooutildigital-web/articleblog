@@ -221,7 +221,7 @@ const SiteDashboard = () => {
               size="sm"
               className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 shrink-0"
               onClick={async () => {
-                const ids = autopilotArticles.map((a) => a.id);
+                const ids = autopilotScheduled.map((a) => a.id);
                 const { error } = await supabase.from("articles").delete().in("id", ids);
                 if (error) {
                   toast.error("Erreur lors de la désactivation");
