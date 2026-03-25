@@ -186,37 +186,89 @@ const SiteDashboard = () => {
           (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? "")
         )[0];
 
+        const currentFrequency = nextAutopilot?.frequency || "";
+
+        const frequencyOptions = [
+          { label: "Tous les jours", value: "Tous les jours" },
+          { label: "Tous les 3 jours", value: "Tous les 3 jours" },
+          { label: "Toutes les semaines", value: "Toutes les semaines" },
+          { label: "Toutes les 2 semaines", value: "Toutes les 2 semaines" },
+          { label: "Tous les mois", value: "Tous les mois" },
+        ];
+
         return (
-          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-lg p-4">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Zap className="w-5 h-5 text-primary" />
+          <div className="bg-card border border-primary/20 rounded-lg p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  Autopilote actif
+                  <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px]">
+                    {autopilotArticles.length} en file
+                  </Badge>
+                </p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  Prochain article {nextAutopilot?.scheduled_at
+                    ? format(parseISO(nextAutopilot.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
+                    : "bientôt"}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 shrink-0"
+                onClick={async () => {
+                  const ids = autopilotArticles.map((a) => a.id);
+                  const { error } = await supabase.from("articles").delete().in("id", ids);
+                  if (error) {
+                    toast.error("Erreur lors de la désactivation");
+                  } else {
+                    queryClient.invalidateQueries({ queryKey: ["articles"] });
+                    toast.success(`Autopilote désactivé · ${ids.length} article${ids.length > 1 ? "s" : ""} supprimé${ids.length > 1 ? "s" : ""}`);
+                  }
+                }}
+              >
+                <ZapOff className="w-3.5 h-3.5" />
+                Désactiver
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Autopilote actif</p>
-              <p className="text-xs text-muted-foreground font-mono">
-                {nextAutopilot?.frequency || "—"} · Prochain article {nextAutopilot?.scheduled_at
-                  ? format(parseISO(nextAutopilot.scheduled_at), "dd MMM yyyy · HH:mm", { locale: fr })
-                  : "bientôt"}
-              </p>
+
+            {/* Frequency editor */}
+            <div className="flex items-center gap-3 pt-2 border-t border-border">
+              <span className="text-xs text-muted-foreground font-mono shrink-0">Fréquence :</span>
+              <div className="flex flex-wrap gap-1.5">
+                {frequencyOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`text-[11px] px-2.5 py-1 rounded-md border transition-all ${
+                      currentFrequency === opt.value
+                        ? "bg-primary/15 border-primary/30 text-primary font-semibold"
+                        : "bg-card border-border text-muted-foreground hover:border-primary/20 hover:text-foreground"
+                    }`}
+                    onClick={async () => {
+                      if (currentFrequency === opt.value) return;
+                      const ids = autopilotArticles.map((a) => a.id);
+                      // Update frequency on all autopilot placeholders
+                      const promises = ids.map((id) =>
+                        supabase.from("articles").update({ frequency: opt.value }).eq("id", id)
+                      );
+                      const results = await Promise.all(promises);
+                      const hasError = results.some((r) => r.error);
+                      if (hasError) {
+                        toast.error("Erreur lors de la mise à jour");
+                      } else {
+                        queryClient.invalidateQueries({ queryKey: ["articles"] });
+                        toast.success(`Fréquence mise à jour : ${opt.value}`);
+                      }
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 shrink-0"
-              onClick={async () => {
-                const ids = autopilotArticles.map((a) => a.id);
-                const { error } = await supabase.from("articles").delete().in("id", ids);
-                if (error) {
-                  toast.error("Erreur lors de la désactivation");
-                } else {
-                  queryClient.invalidateQueries({ queryKey: ["articles"] });
-                  toast.success(`Autopilote désactivé · ${ids.length} article${ids.length > 1 ? "s" : ""} en attente supprimé${ids.length > 1 ? "s" : ""}`);
-                }
-              }}
-            >
-              <ZapOff className="w-3.5 h-3.5" />
-              Désactiver
-            </Button>
           </div>
         );
       })()}
