@@ -43,6 +43,21 @@ const SiteDashboard = () => {
   const scheduled = siteArticles.filter((a) => a.status === "scheduled");
   const drafts = siteArticles.filter((a) => a.status === "draft");
 
+  const autopilotArticles = scheduled.filter((a) => a.mode === "autopilot");
+  const isAutopilotActive = autopilotArticles.length > 0;
+  const nextAutopilot = isAutopilotActive
+    ? [...autopilotArticles].sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))[0]
+    : null;
+  const currentFrequency = nextAutopilot?.frequency || "";
+
+  const frequencyOptions = [
+    { label: "Tous les jours", value: "Tous les jours" },
+    { label: "Tous les 3 jours", value: "Tous les 3 jours" },
+    { label: "Toutes les semaines", value: "Toutes les semaines" },
+    { label: "Toutes les 2 semaines", value: "Toutes les 2 semaines" },
+    { label: "Tous les mois", value: "Tous les mois" },
+  ];
+
   const upcoming = [...scheduled].sort((a, b) =>
     (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? "")
   );
