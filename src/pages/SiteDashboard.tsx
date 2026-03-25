@@ -54,6 +54,29 @@ const SiteDashboard = () => {
     : null;
   const currentFrequency = (nextAutopilot?.frequency || autopilotPublished[0]?.frequency) || "";
 
+  // Compute next expected date from last published autopilot + frequency
+  const computedNextDate = (() => {
+    if (nextAutopilot?.scheduled_at) return parseISO(nextAutopilot.scheduled_at);
+    if (autopilotPublished.length === 0 || !currentFrequency) return null;
+    const lastPub = [...autopilotPublished].sort((a, b) =>
+      (b.published_at ?? "").localeCompare(a.published_at ?? "")
+    )[0];
+    const baseDate = lastPub?.published_at ? new Date(lastPub.published_at) : new Date();
+    const f = currentFrequency.toLowerCase();
+    if (/tous?\s*les\s+jours?/.test(f)) { baseDate.setDate(baseDate.getDate() + 1); return baseDate; }
+    if (/toutes?\s*les\s+semaines?/.test(f)) { baseDate.setDate(baseDate.getDate() + 7); return baseDate; }
+    if (/tous?\s*les\s+mois/.test(f)) { baseDate.setMonth(baseDate.getMonth() + 1); return baseDate; }
+    const m = f.match(/tous?(?:es)?\s*les\s+(\d+)\s+(jour|semaine|mois)/);
+    if (m) {
+      const val = parseInt(m[1]);
+      if (m[2].startsWith("jour")) baseDate.setDate(baseDate.getDate() + val);
+      else if (m[2].startsWith("semaine")) baseDate.setDate(baseDate.getDate() + val * 7);
+      else if (m[2] === "mois") baseDate.setMonth(baseDate.getMonth() + val);
+      return baseDate;
+    }
+    return null;
+  })();
+
   const frequencyOptions = [
     { label: "Tous les jours", value: "Tous les jours" },
     { label: "Tous les 3 jours", value: "Tous les 3 jours" },
@@ -211,8 +234,8 @@ const SiteDashboard = () => {
                 </Badge>
               </p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {hasAutopilotPending
-                  ? `Prochain article ${format(parseISO(nextAutopilot!.scheduled_at!), "dd MMM yyyy · HH:mm", { locale: fr })}`
+                {computedNextDate
+                  ? `Prochain article le ${format(computedNextDate, "dd MMM yyyy · HH:mm", { locale: fr })}${!hasAutopilotPending ? " (estimé)" : ""}`
                   : "⚠️ Aucun article en file — relancez l'autopilote"}
               </p>
             </div>
