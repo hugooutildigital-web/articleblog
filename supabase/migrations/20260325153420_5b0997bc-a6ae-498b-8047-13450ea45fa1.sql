@@ -1,0 +1,1 @@
+ALTER TABLE public.articles DROP CONSTRAINT articles_mode_check;
