@@ -409,12 +409,17 @@ const NewArticle = () => {
               resolve();
               navigate("/articles");
             },
-            onError: (err) => reject(err),
+           onError: (err) => {
+              console.error("[Autopilot] Create error:", err);
+              reject(err);
+            },
           }
         );
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'activation");
+      const msg = e instanceof Error ? e.message : JSON.stringify(e);
+      console.error("[Autopilot] Activation error:", e);
+      toast.error(`Erreur: ${msg}`);
     } finally {
       setAutopilotCreating(false);
     }
