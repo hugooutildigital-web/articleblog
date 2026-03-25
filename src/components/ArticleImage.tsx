@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageOff } from "lucide-react";
 
 interface ArticleImageProps {
@@ -13,20 +13,17 @@ interface ArticleImageProps {
   onBrokenImage?: () => void;
 }
 
-const ArticleImage = forwardRef<HTMLDivElement, ArticleImageProps>(function ArticleImage(
-  {
-    title,
-    imageUrl,
-    alt,
-    containerClassName = "overflow-hidden bg-muted",
-    imageClassName = "h-full w-full object-cover",
-    fallbackClassName = "flex h-full min-h-[180px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-4 text-center",
-    loading = "lazy",
-    message = "Image indisponible pour cet article",
-    onBrokenImage,
-  },
-  ref,
-) {
+const ArticleImage = ({
+  title,
+  imageUrl,
+  alt,
+  containerClassName = "overflow-hidden bg-muted",
+  imageClassName = "h-full w-full object-cover",
+  fallbackClassName = "flex h-full min-h-[180px] w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-4 text-center",
+  loading = "lazy",
+  message = "Image indisponible pour cet article",
+  onBrokenImage,
+}: ArticleImageProps) => {
   const [hasError, setHasError] = useState(false);
   const hasReportedError = useRef(false);
 
@@ -52,7 +49,7 @@ const ArticleImage = forwardRef<HTMLDivElement, ArticleImageProps>(function Arti
   };
 
   return (
-    <div ref={ref} className={containerClassName}>
+    <div className={containerClassName}>
       {imageUrl && !hasError ? (
         <img
           src={imageUrl}
@@ -75,6 +72,6 @@ const ArticleImage = forwardRef<HTMLDivElement, ArticleImageProps>(function Arti
       )}
     </div>
   );
-});
+};
 
 export default ArticleImage;
