@@ -146,19 +146,9 @@ const BlogArticle = () => {
           />
         )}
 
-        {/* Mid-article illustration */}
+        {/* Separator between halves */}
         {secondHalf && (
-          <figure className="my-12 -mx-6 md:mx-0 rounded-xl overflow-hidden">
-            <img
-              src={midImage}
-              alt={`Illustration pour ${article.title}`}
-              className="w-full h-auto object-cover rounded-xl"
-              loading="lazy"
-            />
-            <figcaption className="text-center text-xs text-muted-foreground mt-3 font-mono">
-              Illustration générée pour cet article
-            </figcaption>
-          </figure>
+          <hr className="my-12 border-border" />
         )}
 
         {/* Second half of content */}
