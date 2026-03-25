@@ -43,12 +43,16 @@ const SiteDashboard = () => {
   const scheduled = siteArticles.filter((a) => a.status === "scheduled");
   const drafts = siteArticles.filter((a) => a.status === "draft");
 
-  const autopilotArticles = scheduled.filter((a) => a.mode === "autopilot");
-  const isAutopilotActive = autopilotArticles.length > 0;
-  const nextAutopilot = isAutopilotActive
-    ? [...autopilotArticles].sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))[0]
+  // Autopilot: check both scheduled AND published articles in autopilot mode
+  const autopilotScheduled = scheduled.filter((a) => a.mode === "autopilot");
+  const autopilotPublished = published.filter((a) => a.mode === "autopilot");
+  const allAutopilotArticles = [...autopilotScheduled, ...autopilotPublished];
+  const isAutopilotActive = allAutopilotArticles.length > 0;
+  const hasAutopilotPending = autopilotScheduled.length > 0;
+  const nextAutopilot = hasAutopilotPending
+    ? [...autopilotScheduled].sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""))[0]
     : null;
-  const currentFrequency = nextAutopilot?.frequency || "";
+  const currentFrequency = (nextAutopilot?.frequency || autopilotPublished[0]?.frequency) || "";
 
   const frequencyOptions = [
     { label: "Tous les jours", value: "Tous les jours" },
