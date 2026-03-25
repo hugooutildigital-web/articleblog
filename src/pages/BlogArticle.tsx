@@ -17,6 +17,7 @@ const BlogArticle = () => {
   const [heroError, setHeroError] = useState(false);
   const { data: articles = [], isLoading } = useAllArticles();
   const { data: sites = [] } = useSites();
+  const updateArticle = useUpdateArticle();
 
   const article = articles.find((a) => a.slug === slug);
   const site = article ? sites.find((s) => s.id === article.site_id) : null;
