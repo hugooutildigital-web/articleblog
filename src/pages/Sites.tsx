@@ -198,6 +198,15 @@ const Sites = () => {
                   </button>
                 </div>
 
+                {/* Autopilot indicator */}
+                {isAutopilot && (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-yellow-500/5 border border-yellow-500/20">
+                    <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                    <span className="text-xs font-semibold text-yellow-400">Autopilote</span>
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">{autopilotFrequency}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-3">
                   <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{siteArticles.length} publiés · {scheduledArticles.length} planifiés</span>
                   <span className="font-mono">
