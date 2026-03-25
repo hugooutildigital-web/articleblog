@@ -61,8 +61,7 @@ const BlogArticle = () => {
   }
 
   const readTime = estimateReadTime(article.content);
-  const heroImage = article.image_url || getImageUrl(article.title);
-  const midImage = getMidImageUrl(`${article.title} ${article.category || ""}`);
+  const heroImage = (!heroError && article.image_url) ? article.image_url : null;
 
   return (
     <div className="min-h-screen bg-background">
