@@ -234,8 +234,8 @@ const SiteDashboard = () => {
                 </Badge>
               </p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {hasAutopilotPending
-                  ? `Prochain article ${format(parseISO(nextAutopilot!.scheduled_at!), "dd MMM yyyy · HH:mm", { locale: fr })}`
+                {computedNextDate
+                  ? `Prochain article le ${format(computedNextDate, "dd MMM yyyy · HH:mm", { locale: fr })}${!hasAutopilotPending ? " (estimé)" : ""}`
                   : "⚠️ Aucun article en file — relancez l'autopilote"}
               </p>
             </div>
