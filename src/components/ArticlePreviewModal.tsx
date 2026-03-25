@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { X, Save, Eye, Edit3, Calendar, Globe, Tag, Sparkles } from "lucide-react";
+import { X, Save, Edit3, Calendar, Globe, Tag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUpdateArticle, type Article, type Site } from "@/hooks/useData";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import ArticleImage from "./ArticleImage";
 
 interface ArticlePreviewModalProps {
   article: Article;
