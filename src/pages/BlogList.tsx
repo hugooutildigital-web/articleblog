@@ -77,7 +77,7 @@ const BlogList = () => {
                         {article.category}
                       </span>
                     )}
-                  </div>
+                  </ArticleImage>
 
                   {/* Content */}
                   <div className="p-5 space-y-3">

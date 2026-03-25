@@ -73,7 +73,12 @@ const BlogArticle = () => {
             src={heroImage}
             alt={article.title}
             className="w-full h-full object-cover"
-            onError={() => setHeroError(true)}
+            onError={() => {
+              setHeroError(true);
+              if (article.image_url) {
+                updateArticle.mutate({ id: article.id, image_url: null });
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-muted" />

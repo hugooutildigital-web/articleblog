@@ -407,7 +407,15 @@ const SiteDashboard = () => {
                   className="bg-card border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all group"
                 >
                   <div className="flex">
-                    <SiteArticleThumbnail title={article.title} imageUrl={article.image_url} />
+                    <SiteArticleThumbnail
+                      title={article.title}
+                      imageUrl={article.image_url}
+                      onBrokenImage={() => {
+                        if (article.image_url) {
+                          updateArticle.mutate({ id: article.id, image_url: null });
+                        }
+                      }}
+                    />
 
                     <div className="flex-1 p-4 flex flex-col min-w-0">
                       <div className="flex items-center gap-2 mb-2">
