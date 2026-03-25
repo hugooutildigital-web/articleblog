@@ -69,9 +69,9 @@ const ArticleCard = ({ article, sites }: ArticleCardProps) => {
               >
                 {isPublished ? "Publié" : article.status === "scheduled" ? "Planifié" : "Brouillon"}
               </Badge>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
-                {article.mode === "auto" ? <Bot className="w-3 h-3" /> : <PenLine className="w-3 h-3" />}
-                {article.mode === "auto" ? "Auto" : "Perso"}
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 gap-1 ${article.mode === "autopilot" ? "border-yellow-500/50 text-yellow-400" : ""}`}>
+                {article.mode === "autopilot" ? <Zap className="w-3 h-3" /> : article.mode === "auto" ? <Bot className="w-3 h-3" /> : <PenLine className="w-3 h-3" />}
+                {article.mode === "autopilot" ? "Autopilot" : article.mode === "auto" ? "Auto" : "Perso"}
               </Badge>
             </div>
 
