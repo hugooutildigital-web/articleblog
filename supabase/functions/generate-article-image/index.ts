@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { articleId, title, siteName, siteNiche } = await req.json();
+    const { articleId, title, siteName, siteNiche, category } = await req.json();
     if (!articleId || !title) {
       return new Response(JSON.stringify({ error: "articleId and title are required" }), {
         status: 400,
@@ -28,37 +28,77 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Generate image via AI
-    const imagePrompt = `Professional, high-quality blog header image for an article titled "${title}". ${siteName ? `Business: ${siteName}.` : ""} ${siteNiche ? `Industry: ${siteNiche}.` : ""} Modern, clean, photorealistic style. No text overlay. On a clean background.`;
+    const imagePrompt = `Professional, high-quality blog header image for an article titled "${title}". ${siteName ? `Business: ${siteName}.` : ""} ${siteNiche ? `Industry: ${siteNiche}.` : ""} ${category ? `Category: ${category}.` : ""} Modern, clean, photorealistic style. No text overlay. Landscape 16:9 ratio. On a clean background.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-flash-image-preview",
-        messages: [{ role: "user", content: imagePrompt }],
-        modalities: ["image", "text"],
-      }),
-    });
+    // Retry logic with exponential backoff for rate limits
+    const models = [
+      "google/gemini-3.1-flash-image-preview",
+      "google/gemini-3-pro-image-preview",
+      "google/gemini-2.5-flash-image",
+    ];
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI image generation failed:", aiResponse.status, errText);
-      return new Response(JSON.stringify({ error: "Image generation failed", status: aiResponse.status }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let imageDataUrl: string | null = null;
+    let lastError = "";
+
+    for (const model of models) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          const delay = Math.pow(2, attempt) * 2000; // 4s, 8s
+          console.log(`[Image] Retry ${attempt + 1} for model ${model} after ${delay}ms...`);
+          await new Promise((r) => setTimeout(r, delay));
+        }
+
+        try {
+          console.log(`[Image] Generating with ${model} (attempt ${attempt + 1})...`);
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: imagePrompt }],
+              modalities: ["image", "text"],
+            }),
+          });
+
+          if (aiResponse.status === 429) {
+            lastError = "Rate limited (429)";
+            console.warn(`[Image] Rate limited on ${model}, attempt ${attempt + 1}`);
+            continue; // retry same model
+          }
+
+          if (!aiResponse.ok) {
+            lastError = `HTTP ${aiResponse.status}`;
+            const errText = await aiResponse.text();
+            console.error(`[Image] Error ${aiResponse.status} on ${model}:`, errText);
+            break; // try next model
+          }
+
+          const aiData = await aiResponse.json();
+          imageDataUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+          if (imageDataUrl) {
+            console.log(`[Image] ✅ Generated successfully with ${model}`);
+            break; // success
+          } else {
+            lastError = "No image in response";
+            console.warn(`[Image] No image in response from ${model}`);
+            break; // try next model
+          }
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : "Unknown error";
+          console.error(`[Image] Exception on ${model}:`, lastError);
+          break; // try next model
+        }
+      }
+      if (imageDataUrl) break; // found an image, stop trying models
     }
 
-    const aiData = await aiResponse.json();
-    const imageDataUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
     if (!imageDataUrl) {
-      console.error("No image in AI response");
-      return new Response(JSON.stringify({ error: "No image generated" }), {
+      console.error(`[Image] All models failed. Last error: ${lastError}`);
+      return new Response(JSON.stringify({ error: `Image generation failed: ${lastError}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,7 +107,7 @@ serve(async (req) => {
     // Extract base64 data
     const base64Match = imageDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
     if (!base64Match) {
-      console.error("Invalid image data format");
+      console.error("[Image] Invalid image data format");
       return new Response(JSON.stringify({ error: "Invalid image format" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -94,7 +134,7 @@ serve(async (req) => {
       });
 
     if (uploadError) {
-      console.error("Storage upload error:", uploadError);
+      console.error("[Image] Storage upload error:", uploadError);
       return new Response(JSON.stringify({ error: "Upload failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -112,14 +152,16 @@ serve(async (req) => {
       .eq("id", articleId);
 
     if (updateError) {
-      console.error("Article update error:", updateError);
+      console.error("[Image] Article update error:", updateError);
     }
+
+    console.log(`[Image] ✅ Complete: ${publicUrl}`);
 
     return new Response(JSON.stringify({ image_url: publicUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("generate-article-image error:", e);
+    console.error("[Image] Error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
