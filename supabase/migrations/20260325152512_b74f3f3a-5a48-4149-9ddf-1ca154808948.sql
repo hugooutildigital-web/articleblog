@@ -1,0 +1,1 @@
+ALTER TABLE public.articles DROP CONSTRAINT articles_frequency_check;
