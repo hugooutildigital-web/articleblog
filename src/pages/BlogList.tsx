@@ -1,16 +1,15 @@
-import { useAllArticles, useSites } from "@/hooks/useData";
+import { useAllArticles, useSites, useUpdateArticle } from "@/hooks/useData";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const getImageUrl = (title: string, width = 800, height = 500) =>
-  `https://image.pollinations.ai/prompt/${encodeURIComponent(title + ', professional photography, high quality')}?width=${width}&height=${height}&nologo=true`;
+import ArticleImage from "@/components/ArticleImage";
 
 const BlogList = () => {
   const { data: articles = [], isLoading } = useAllArticles();
   const { data: sites = [] } = useSites();
+  const updateArticle = useUpdateArticle();
 
   const published = articles.filter((a) => a.status === "published");
 
@@ -59,11 +58,17 @@ const BlogList = () => {
                 >
                   {/* Image */}
                   <div className="relative h-52 overflow-hidden">
-                    <img
-                      src={article.image_url || getImageUrl(article.title)}
-                      alt={article.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
+                    <ArticleImage
+                      title={article.title}
+                      imageUrl={article.image_url}
+                      containerClassName="h-full w-full"
+                      imageClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      fallbackClassName="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-6 text-center"
+                      onBrokenImage={() => {
+                        if (article.image_url) {
+                          updateArticle.mutate({ id: article.id, image_url: null });
+                        }
+                      }}
                     />
                     {article.category && (
                       <span

@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useAllArticles, useSites } from "@/hooks/useData";
+import { useAllArticles, useSites, useUpdateArticle } from "@/hooks/useData";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft, Calendar, Clock, Tag, User } from "lucide-react";
@@ -17,6 +17,7 @@ const BlogArticle = () => {
   const [heroError, setHeroError] = useState(false);
   const { data: articles = [], isLoading } = useAllArticles();
   const { data: sites = [] } = useSites();
+  const updateArticle = useUpdateArticle();
 
   const article = articles.find((a) => a.slug === slug);
   const site = article ? sites.find((s) => s.id === article.site_id) : null;
@@ -72,7 +73,12 @@ const BlogArticle = () => {
             src={heroImage}
             alt={article.title}
             className="w-full h-full object-cover"
-            onError={() => setHeroError(true)}
+            onError={() => {
+              setHeroError(true);
+              if (article.image_url) {
+                updateArticle.mutate({ id: article.id, image_url: null });
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-muted" />

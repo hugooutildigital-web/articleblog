@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { X, Save, Eye, Edit3, Calendar, Globe, Tag, Sparkles } from "lucide-react";
+import { X, Save, Edit3, Calendar, Globe, Tag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUpdateArticle, type Article, type Site } from "@/hooks/useData";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import ArticleImage from "./ArticleImage";
 
 interface ArticlePreviewModalProps {
   article: Article;
@@ -169,16 +170,18 @@ const ArticlePreviewModal = ({ article, site, open, onClose }: ArticlePreviewMod
             </div>
           ) : (
             <article className="max-w-3xl mx-auto">
-              {/* Image */}
-              {article.image_url && (
-                <div className="rounded-lg overflow-hidden mb-6 border border-border">
-                  <img
-                    src={article.image_url}
-                    alt={article.title}
-                    className="w-full h-64 object-cover"
-                  />
-                </div>
-              )}
+              <ArticleImage
+                title={article.title}
+                imageUrl={article.image_url}
+                containerClassName="rounded-lg overflow-hidden mb-6 border border-border"
+                imageClassName="w-full h-64 object-cover"
+                fallbackClassName="flex h-64 w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-6 text-center"
+                onBrokenImage={() => {
+                  if (article.image_url) {
+                    updateArticle.mutate({ id: article.id, image_url: null });
+                  }
+                }}
+              />
 
               {/* Meta */}
               <div className="flex items-center gap-3 mb-4 flex-wrap">
