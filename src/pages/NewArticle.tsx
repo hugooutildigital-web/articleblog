@@ -4,6 +4,7 @@ import { Bot, PenLine, ArrowLeft, ArrowRight, CalendarDays, Sparkles, Loader2, C
 import { Button } from "@/components/ui/button";
 import { useSites, useCreateArticle } from "@/hooks/useData";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   calculateScheduledDates,
   generateDatesForCount,
@@ -23,8 +24,51 @@ const slugify = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const GENERATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-article`;
-const GENERATE_IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-article-image`;
 const GENERATE_TOPICS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-topics`;
+
+interface GenerateArticleImagePayload {
+  articleId: string;
+  title: string;
+  siteName?: string;
+  siteNiche?: string;
+  category?: string;
+}
+
+const IMAGE_GENERATION_RETRY_DELAYS = [0, 2500, 6000] as const;
+
+const triggerArticleImageGeneration = async ({
+  articleId,
+  title,
+  siteName,
+  siteNiche,
+  category,
+}: GenerateArticleImagePayload) => {
+  for (let attempt = 0; attempt < IMAGE_GENERATION_RETRY_DELAYS.length; attempt += 1) {
+    const delay = IMAGE_GENERATION_RETRY_DELAYS[attempt];
+
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const { error } = await supabase.functions.invoke("generate-article-image", {
+      body: {
+        articleId,
+        title,
+        siteName,
+        siteNiche,
+        category,
+      },
+    });
+
+    if (!error) {
+      return;
+    }
+
+    console.error(`[Image] attempt ${attempt + 1} failed for article ${articleId}:`, error.message);
+  }
+
+  console.error(`[Image] all retries failed for article ${articleId}`);
+};
 
 async function streamArticle({
   body,
@@ -308,19 +352,13 @@ const NewArticle = () => {
             {
               onSuccess: (data) => {
                 setBatchCompleted((prev) => [...prev, finalTitle]);
-                fetch(GENERATE_IMAGE_URL, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-                  },
-                  body: JSON.stringify({
-                    articleId: data.id,
-                    title: finalTitle,
-                    siteName: selectedSiteData?.name || "",
-                    siteNiche: selectedSiteData?.niche || "",
-                  }),
-                }).catch(() => {});
+                void triggerArticleImageGeneration({
+                  articleId: data.id,
+                  title: finalTitle,
+                  siteName: selectedSiteData?.name || "",
+                  siteNiche: selectedSiteData?.niche || "",
+                  category: category || undefined,
+                });
                 resolve();
               },
               onError: (err) => reject(err),
@@ -361,19 +399,13 @@ const NewArticle = () => {
         onSuccess: (data) => {
           toast.success("Article planifié !");
           navigate("/articles");
-          fetch(GENERATE_IMAGE_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({
-              articleId: data.id,
-              title: finalTitle,
-              siteName: selectedSiteData?.name || "",
-              siteNiche: selectedSiteData?.niche || "",
-            }),
-          }).catch(() => {});
+          void triggerArticleImageGeneration({
+            articleId: data.id,
+            title: finalTitle,
+            siteName: selectedSiteData?.name || "",
+            siteNiche: selectedSiteData?.niche || "",
+            category: category || undefined,
+          });
         },
         onError: () => toast.error("Erreur lors de la création"),
       }
