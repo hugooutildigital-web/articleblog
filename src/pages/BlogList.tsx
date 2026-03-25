@@ -57,18 +57,19 @@ const BlogList = () => {
                   className="group bg-card rounded-xl border border-border overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
                 >
                   {/* Image */}
-                  <ArticleImage
-                    title={article.title}
-                    imageUrl={article.image_url}
-                    containerClassName="relative h-52 overflow-hidden"
-                    imageClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    fallbackClassName="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-6 text-center"
-                    onBrokenImage={() => {
-                      if (article.image_url) {
-                        updateArticle.mutate({ id: article.id, image_url: null });
-                      }
-                    }}
-                  >
+                  <div className="relative h-52 overflow-hidden">
+                    <ArticleImage
+                      title={article.title}
+                      imageUrl={article.image_url}
+                      containerClassName="h-full w-full"
+                      imageClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      fallbackClassName="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted via-card to-muted p-6 text-center"
+                      onBrokenImage={() => {
+                        if (article.image_url) {
+                          updateArticle.mutate({ id: article.id, image_url: null });
+                        }
+                      }}
+                    />
                     {article.category && (
                       <span
                         className="absolute top-3 left-3 text-xs font-medium px-2.5 py-1 rounded-full"
@@ -77,7 +78,7 @@ const BlogList = () => {
                         {article.category}
                       </span>
                     )}
-                  </ArticleImage>
+                  </div>
 
                   {/* Content */}
                   <div className="p-5 space-y-3">
