@@ -14,6 +14,7 @@ const estimateReadTime = (content: string | null) => {
 
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [heroError, setHeroError] = useState(false);
   const { data: articles = [], isLoading } = useAllArticles();
   const { data: sites = [] } = useSites();
 
