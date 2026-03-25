@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSites, useCreateSite, useDeleteSite, useUpdateSite, useAllArticles } from "@/hooks/useData";
-import { Globe, ExternalLink, Plus, FileText, Trash2, Copy, DollarSign } from "lucide-react";
+import { Globe, ExternalLink, Plus, FileText, Trash2, Copy, DollarSign, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -116,6 +116,9 @@ const Sites = () => {
           {sites.map((site) => {
             const siteArticles = articles.filter((a) => a.site_id === site.id && a.status === "published");
             const scheduledArticles = articles.filter((a) => a.site_id === site.id && a.status === "scheduled");
+            const autopilotArticles = articles.filter((a) => a.site_id === site.id && a.mode === "autopilot" && a.status === "scheduled");
+            const isAutopilot = autopilotArticles.length > 0;
+            const autopilotFrequency = autopilotArticles[0]?.frequency || "";
             const hasScheduled = scheduledArticles.length > 0;
             const lastPublished = siteArticles.length > 0
               ? siteArticles.sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0]?.published_at
@@ -194,6 +197,15 @@ const Sites = () => {
                     <Copy className="w-3 h-3" />
                   </button>
                 </div>
+
+                {/* Autopilot indicator */}
+                {isAutopilot && (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-yellow-500/5 border border-yellow-500/20">
+                    <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                    <span className="text-xs font-semibold text-yellow-400">Autopilote</span>
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">{autopilotFrequency}</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-3">
                   <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{siteArticles.length} publiés · {scheduledArticles.length} planifiés</span>
