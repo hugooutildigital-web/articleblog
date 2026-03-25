@@ -409,7 +409,10 @@ const NewArticle = () => {
               resolve();
               navigate("/articles");
             },
-            onError: (err) => reject(err),
+           onError: (err) => {
+              console.error("[Autopilot] Create error:", err);
+              reject(err);
+            },
           }
         );
       });
