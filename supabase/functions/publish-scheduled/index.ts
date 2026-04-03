@@ -187,7 +187,7 @@ async function scheduleNextRecurring(
   // Trigger AI generation for the recurring article
   const { data: siteInfo } = await supabase
     .from("sites")
-    .select("name, niche, description, url")
+    .select("name, niche, description, url, city")
     .eq("id", article.site_id)
     .single();
 
