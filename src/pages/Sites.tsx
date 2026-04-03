@@ -25,7 +25,7 @@ const Sites = () => {
   const handleSubmit = () => {
     if (!form.name || !form.url) return toast.error("Nom et URL requis");
     createSite.mutate(form, {
-      onSuccess: () => { toast.success("Site ajouté"); setOpen(false); setForm({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a" }); },
+      onSuccess: () => { toast.success("Site ajouté"); setOpen(false); setForm({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a", city: "" }); },
       onError: () => toast.error("Erreur lors de l'ajout"),
     });
   };
