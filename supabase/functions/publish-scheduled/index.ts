@@ -158,7 +158,7 @@ async function scheduleNextRecurring(
   if (!nextDate) return;
 
   const placeholderTitle = `[À générer] ${article.category || article.title}`;
-  const slug = `${((article.category as string) || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+  const slug = `${((article.category as string) || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
 
   const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
     site_id: article.site_id,
