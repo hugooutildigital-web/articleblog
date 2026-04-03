@@ -56,13 +56,14 @@ serve(async (req) => {
     // ──────────────────────────────────────
     // PHASE 1: Generate a unique topic
     // ──────────────────────────────────────
-    const topicPrompt = `Tu es un expert en stratégie de contenu SEO local. Tu dois proposer UN SEUL sujet d'article de blog pour l'entreprise "${site.name}".
+    const topicPrompt = `Tu es un expert en stratégie de contenu SEO local. Tu dois proposer UN SEUL sujet d'article de blog pour l'entreprise "${site.name}"${site.city ? ` située à "${site.city}"` : ""}.
 
 Informations sur l'entreprise :
 - Nom : "${site.name}"
 - Description : "${site.description || ""}"
 - Niche : "${site.niche || ""}"
 - URL : "${site.url || ""}"
+${site.city ? `- Ville : "${site.city}"` : ""}
 ${article.category ? `- Catégorie cible : "${article.category}"` : ""}
 
 ARTICLES DÉJÀ PUBLIÉS (à NE PAS répéter ni reformuler) :
@@ -87,13 +88,14 @@ Retourne UNIQUEMENT le sujet, sans guillemets, sans explication.`;
     // ──────────────────────────────────────
     // PHASE 2: Generate the article
     // ──────────────────────────────────────
-    const articlePrompt = `Tu es un expert en rédaction web et en référencement local. Rédige un article de blog pour "${site.name}".
+    const articlePrompt = `Tu es un expert en rédaction web et en référencement local. Rédige un article de blog pour "${site.name}"${site.city ? ` située à "${site.city}"` : ""}.
 
 Informations entreprise :
 - Nom : "${site.name}"
 - Description : "${site.description || ""}"
 - Niche : "${site.niche || ""}"
 - URL : "${site.url || ""}"
+${site.city ? `- Ville : "${site.city}"` : ""}
 ${article.category ? `- Catégorie : "${article.category}"` : ""}
 ${article.tone ? `- Ton souhaité : "${article.tone}"` : ""}
 ${article.instructions ? `- Instructions spéciales : "${article.instructions}"` : ""}
@@ -235,6 +237,7 @@ CONTENU:
           title: finalTitle,
           category: article.category || "",
           siteName: site.name,
+          siteCity: site.city || "",
         }),
       });
       console.log(`[Autopilot] Image generation triggered`);

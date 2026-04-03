@@ -91,6 +91,7 @@ export type Database = {
       sites: {
         Row: {
           blog_path: string
+          city: string | null
           color: string | null
           created_at: string
           description: string | null
@@ -103,6 +104,7 @@ export type Database = {
         }
         Insert: {
           blog_path?: string
+          city?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
@@ -115,6 +117,7 @@ export type Database = {
         }
         Update: {
           blog_path?: string
+          city?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
