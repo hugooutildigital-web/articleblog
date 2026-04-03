@@ -91,7 +91,7 @@ const Sites = () => {
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">{f.label}</label>
                   <input
                     type="text"
-                    value={(form as any)[f.key]}
+                    value={form[f.key as keyof typeof form]}
                     onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder}
                     className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
