@@ -204,6 +204,7 @@ async function scheduleNextRecurring(
         mode: "auto",
         siteName: siteInfo.name,
         siteNiche: siteInfo.niche || "",
+        siteCity: siteInfo.city || "",
         siteDescription: siteInfo.description || "",
         siteUrl: siteInfo.url || "",
         category: article.category || "",

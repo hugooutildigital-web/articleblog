@@ -129,6 +129,7 @@ const SiteDashboard = () => {
           siteId: site.id,
           siteName: site.name,
           siteNiche: site.niche || "",
+          siteCity: site.city || "",
           siteDescription: site.description || "",
           siteUrl: site.url,
         }),

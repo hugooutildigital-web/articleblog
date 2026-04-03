@@ -124,7 +124,7 @@ const Sites = () => {
             const lastPublished = siteArticles.length > 0
               ? siteArticles.sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0]?.published_at
               : null;
-            const revenue = Number((site as any).monthly_revenue) || 0;
+            const revenue = Number(site.monthly_revenue) || 0;
 
             return (
               <div

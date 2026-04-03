@@ -311,6 +311,7 @@ const NewArticle = () => {
           mode: mode || "auto",
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
+          siteCity: selectedSiteData?.city || "",
           siteDescription: selectedSiteData?.description || "",
           siteUrl: selectedSiteData?.url || "",
           category,

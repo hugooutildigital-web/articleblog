@@ -198,6 +198,7 @@ Analyse l'ensemble, identifie les problèmes et propose les corrections nécessa
             mode: "auto",
             siteName,
             siteNiche: siteNiche || "",
+            siteCity: siteCity || "",
             siteDescription: siteDescription || "",
             siteUrl: siteUrl || "",
             topic: newTopic,
