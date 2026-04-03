@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_articles_status_site_id ON public.articles (status, site_id);

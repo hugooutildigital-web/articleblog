@@ -57,7 +57,18 @@ LAYOUT : La page article doit avoir :
 - Hero image 450px avec titre superposé sur dégradé sombre (gradient-to-t from-black/80)
 - Contenu centré max-w-[750px], text-lg, leading-relaxed
 - Métadonnées formatées en ligne sous le hero
-- Pas de texte coupé, pas de layout cassé sur mobile`;
+- Pas de texte coupé, pas de layout cassé sur mobile
+
+=== 4. SITEMAP DYNAMIQUE ===
+
+Un sitemap XML dynamique est déjà généré automatiquement pour ce site.
+URL du sitemap : ${SUPABASE_URL}/functions/v1/sitemap?site_id=${siteId}
+
+Ajoute cette ligne dans le fichier public/robots.txt du projet :
+Sitemap: ${SUPABASE_URL}/functions/v1/sitemap?site_id=${siteId}
+
+Ajoute aussi cette balise dans le <head> de index.html :
+<link rel="sitemap" type="application/xml" href="${SUPABASE_URL}/functions/v1/sitemap?site_id=${siteId}" />`;
 
 const CopyBlock = ({ prompt }: { prompt: string }) => {
   const [copied, setCopied] = useState(false);
