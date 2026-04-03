@@ -158,7 +158,7 @@ async function scheduleNextRecurring(
   if (!nextDate) return;
 
   const placeholderTitle = `[À générer] ${article.category || article.title}`;
-  const slug = `${((article.category as string) || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+  const slug = `${((article.category as string) || "article").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
 
   const { data: newArticle, error: insertError } = await supabase.from("articles").insert({
     site_id: article.site_id,
@@ -187,7 +187,7 @@ async function scheduleNextRecurring(
   // Trigger AI generation for the recurring article
   const { data: siteInfo } = await supabase
     .from("sites")
-    .select("name, niche, description, url")
+    .select("name, niche, description, url, city")
     .eq("id", article.site_id)
     .single();
 
@@ -204,6 +204,7 @@ async function scheduleNextRecurring(
         mode: "auto",
         siteName: siteInfo.name,
         siteNiche: siteInfo.niche || "",
+        siteCity: siteInfo.city || "",
         siteDescription: siteInfo.description || "",
         siteUrl: siteInfo.url || "",
         category: article.category || "",

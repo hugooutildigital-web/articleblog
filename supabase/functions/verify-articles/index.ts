@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { siteId, siteName, siteNiche, siteDescription, siteUrl } = await req.json();
+    const { siteId, siteName, siteNiche, siteCity, siteDescription, siteUrl } = await req.json();
     if (!siteId) throw new Error("siteId is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -48,7 +48,7 @@ Catégorie: ${a.category || "N/A"}
 Aperçu contenu: ${contentPreview}...`;
     }).join("\n\n---\n\n");
 
-    const systemPrompt = `Tu es un expert en stratégie de contenu et SEO. On te donne une liste d'articles de blog planifiés pour le site "${siteName}" (${siteNiche || "activité locale"}).
+    const systemPrompt = `Tu es un expert en stratégie de contenu et SEO. On te donne une liste d'articles de blog planifiés pour le site "${siteName}"${siteCity ? ` à ${siteCity}` : ""} (${siteNiche || "activité locale"}).
 
 Ton rôle est d'analyser l'ENSEMBLE des articles et d'identifier :
 1. Les articles qui se répètent trop (même sujet, même angle, mêmes arguments)
@@ -92,6 +92,7 @@ ${articlesSummary}
 
 Informations sur l'entreprise :
 Nom : "${siteName}"
+${siteCity ? `Ville : "${siteCity}"` : ""}
 ${siteNiche ? `Niche : "${siteNiche}"` : ""}
 ${siteDescription ? `Description : "${siteDescription}"` : ""}
 ${siteUrl ? `Site : "${siteUrl}"` : ""}
@@ -197,6 +198,7 @@ Analyse l'ensemble, identifie les problèmes et propose les corrections nécessa
             mode: "auto",
             siteName,
             siteNiche: siteNiche || "",
+            siteCity: siteCity || "",
             siteDescription: siteDescription || "",
             siteUrl: siteUrl || "",
             topic: newTopic,

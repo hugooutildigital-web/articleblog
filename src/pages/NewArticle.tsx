@@ -233,7 +233,7 @@ const NewArticle = () => {
         body: JSON.stringify({
           count: targetCount,
           siteName: selectedSiteData?.name || "",
-          siteCity: selectedSiteData?.niche || "", // city not in DB yet, use niche as context
+          siteCity: selectedSiteData?.city || "",
           siteDescription: selectedSiteData?.description || "",
           siteUrl: selectedSiteData?.url || "",
           siteNiche: selectedSiteData?.niche || "",
@@ -281,6 +281,7 @@ const NewArticle = () => {
           mode,
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
+          siteCity: selectedSiteData?.city || "",
           siteDescription: selectedSiteData?.description || "",
           siteUrl: selectedSiteData?.url || "",
           title,
@@ -310,6 +311,7 @@ const NewArticle = () => {
           mode: mode || "auto",
           siteName: selectedSiteData?.name || "",
           siteNiche: selectedSiteData?.niche || "",
+          siteCity: selectedSiteData?.city || "",
           siteDescription: selectedSiteData?.description || "",
           siteUrl: selectedSiteData?.url || "",
           category,

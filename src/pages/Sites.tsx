@@ -18,14 +18,14 @@ const Sites = () => {
   const deleteSite = useDeleteSite();
   const updateSite = useUpdateSite();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a" });
+  const [form, setForm] = useState({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a", city: "" });
   const [editingRevenue, setEditingRevenue] = useState<string | null>(null);
   const [revenueValue, setRevenueValue] = useState("");
 
   const handleSubmit = () => {
     if (!form.name || !form.url) return toast.error("Nom et URL requis");
     createSite.mutate(form, {
-      onSuccess: () => { toast.success("Site ajouté"); setOpen(false); setForm({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a" }); },
+      onSuccess: () => { toast.success("Site ajouté"); setOpen(false); setForm({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a", city: "" }); },
       onError: () => toast.error("Erreur lors de l'ajout"),
     });
   };
@@ -48,7 +48,7 @@ const Sites = () => {
     e?.stopPropagation();
     const val = parseFloat(revenueValue) || 0;
     updateSite.mutate(
-      { id: siteId, monthly_revenue: val } as any,
+      { id: siteId, monthly_revenue: val },
       {
         onSuccess: () => {
           toast.success("Mensualité mise à jour");
@@ -85,12 +85,13 @@ const Sites = () => {
                 { key: "blog_path", label: "Chemin blog", placeholder: "/blog" },
                 { key: "description", label: "Description", placeholder: "Blog tech & innovation" },
                 { key: "niche", label: "Niche", placeholder: "Technology" },
+                { key: "city", label: "Ville", placeholder: "Paris, Bordeaux..." },
               ].map((f) => (
                 <div key={f.key}>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">{f.label}</label>
                   <input
                     type="text"
-                    value={(form as any)[f.key]}
+                    value={form[f.key as keyof typeof form]}
                     onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder}
                     className="w-full bg-surface border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
@@ -123,7 +124,7 @@ const Sites = () => {
             const lastPublished = siteArticles.length > 0
               ? siteArticles.sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))[0]?.published_at
               : null;
-            const revenue = Number((site as any).monthly_revenue) || 0;
+            const revenue = Number(site.monthly_revenue) || 0;
 
             return (
               <div
