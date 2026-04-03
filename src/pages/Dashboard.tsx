@@ -16,7 +16,7 @@ const Dashboard = () => {
   const drafts = articles.filter((a) => a.status === "draft");
   const recent = articles.slice(0, 3);
 
-  const mrr = sites.reduce((sum, s) => sum + (Number((s as any).monthly_revenue) || 0), 0);
+  const mrr = sites.reduce((sum, s) => sum + (Number(s.monthly_revenue) || 0), 0);
 
   if (loadingArticles || loadingSites) {
     return (

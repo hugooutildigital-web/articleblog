@@ -40,7 +40,6 @@ Page /blog/:slug (article) :
 - Métadonnées sous le hero : date de publication, temps de lecture estimé, catégorie
 - Contenu centré, largeur max 750px, police 18px, interligne 1.8
 - Titres h2 avec bordure gauche accent, h3 en gras avec couleur accent
-- Image illustrative insérée au milieu du contenu (même logique Pollinations.ai)
 - Encadré de présentation en bas avec logo et bouton CTA
 
 === 3. CORRECTIONS IMPORTANTES ===
@@ -50,7 +49,8 @@ DATE : Ne JAMAIS utiliser published_at directement car il peut être null.
 → Format avec date-fns : format(parseISO(date), "d MMMM yyyy", { locale: fr })
 
 IMAGES : image_url est souvent null dans la base.
-→ Génère TOUJOURS une image de fallback via Pollinations.ai avec le titre encodé en URL
+→ Si image_url est null, affiche un div placeholder avec un gradient CSS cohérent :
+  <div className="w-full h-[450px] bg-gradient-to-br from-slate-700 to-slate-900" />
 → Utilise cette logique dans la liste /blog ET dans le hero de /blog/:slug
 
 LAYOUT : La page article doit avoir :

@@ -5,20 +5,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMPTY_SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+</urlset>`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const xmlHeaders = {
+    ...corsHeaders,
+    "Content-Type": "application/xml; charset=utf-8",
+  };
 
   try {
     const url = new URL(req.url);
     const siteId = url.searchParams.get("site_id");
 
     if (!siteId) {
-      return new Response(
-        JSON.stringify({ error: "site_id query parameter is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(EMPTY_SITEMAP, { headers: xmlHeaders });
     }
 
     const supabase = createClient(
@@ -26,7 +32,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch site info
     const { data: site, error: siteError } = await supabase
       .from("sites")
       .select("url, blog_path")
@@ -34,13 +39,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (siteError || !site) {
-      return new Response(
-        JSON.stringify({ error: "Site not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(EMPTY_SITEMAP, { headers: xmlHeaders });
     }
 
-    // Fetch published articles
     const { data: articles, error: articlesError } = await supabase
       .from("articles")
       .select("slug, published_at, created_at, updated_at")
@@ -49,10 +50,7 @@ Deno.serve(async (req) => {
       .order("published_at", { ascending: false });
 
     if (articlesError) {
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch articles" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(EMPTY_SITEMAP, { headers: xmlHeaders });
     }
 
     const baseUrl = site.url.replace(/\/$/, "");
@@ -76,16 +74,12 @@ ${urls.join("\n")}
 
     return new Response(xml, {
       headers: {
-        ...corsHeaders,
-        "Content-Type": "application/xml; charset=utf-8",
+        ...xmlHeaders,
         "Cache-Control": "public, max-age=3600",
       },
     });
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch {
+    return new Response(EMPTY_SITEMAP, { headers: xmlHeaders });
   }
 });
 
