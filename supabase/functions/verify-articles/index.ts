@@ -92,6 +92,7 @@ ${articlesSummary}
 
 Informations sur l'entreprise :
 Nom : "${siteName}"
+${siteCity ? `Ville : "${siteCity}"` : ""}
 ${siteNiche ? `Niche : "${siteNiche}"` : ""}
 ${siteDescription ? `Description : "${siteDescription}"` : ""}
 ${siteUrl ? `Site : "${siteUrl}"` : ""}
