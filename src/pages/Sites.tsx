@@ -85,6 +85,7 @@ const Sites = () => {
                 { key: "blog_path", label: "Chemin blog", placeholder: "/blog" },
                 { key: "description", label: "Description", placeholder: "Blog tech & innovation" },
                 { key: "niche", label: "Niche", placeholder: "Technology" },
+                { key: "city", label: "Ville", placeholder: "Paris, Bordeaux..." },
               ].map((f) => (
                 <div key={f.key}>
                   <label className="text-xs text-muted-foreground font-mono mb-1.5 block">{f.label}</label>
