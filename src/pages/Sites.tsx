@@ -48,7 +48,7 @@ const Sites = () => {
     e?.stopPropagation();
     const val = parseFloat(revenueValue) || 0;
     updateSite.mutate(
-      { id: siteId, monthly_revenue: val } as any,
+      { id: siteId, monthly_revenue: val },
       {
         onSuccess: () => {
           toast.success("Mensualité mise à jour");
