@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { siteId, siteName, siteNiche, siteDescription, siteUrl } = await req.json();
+    const { siteId, siteName, siteNiche, siteCity, siteDescription, siteUrl } = await req.json();
     if (!siteId) throw new Error("siteId is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
