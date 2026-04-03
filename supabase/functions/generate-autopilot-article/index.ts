@@ -235,6 +235,7 @@ CONTENU:
           title: finalTitle,
           category: article.category || "",
           siteName: site.name,
+          siteCity: site.city || "",
         }),
       });
       console.log(`[Autopilot] Image generation triggered`);
