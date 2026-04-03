@@ -32,8 +32,8 @@ Crée un hook "useBlogArticle(slug)" qui récupère un seul article par slug et 
 Page /blog (liste des articles) :
 - Grille 3 colonnes sur desktop, 1 colonne sur mobile
 - Chaque carte affiche : image, titre, extrait, date de publication, bouton "Lire l'article"
-- Pour l'image, utilise image_url de l'article. Si null, génère une image via Pollinations.ai :
-  const imageUrl = article.image_url || \`https://image.pollinations.ai/prompt/\${encodeURIComponent(article.title + ', professional photography, high quality')}?width=1200&height=630&nologo=true\`;
+- Pour l'image, utilise image_url de l'article. Si null, affiche un div placeholder avec un gradient CSS :
+  {article.image_url ? <img src={article.image_url} /> : <div className="w-full h-48 bg-gradient-to-br from-slate-700 to-slate-900 rounded-lg" />}
 
 Page /blog/:slug (article) :
 - Image hero pleine largeur (hauteur 450px) avec dégradé sombre en bas et titre superposé en blanc
