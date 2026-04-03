@@ -56,13 +56,14 @@ serve(async (req) => {
     // ──────────────────────────────────────
     // PHASE 1: Generate a unique topic
     // ──────────────────────────────────────
-    const topicPrompt = `Tu es un expert en stratégie de contenu SEO local. Tu dois proposer UN SEUL sujet d'article de blog pour l'entreprise "${site.name}".
+    const topicPrompt = `Tu es un expert en stratégie de contenu SEO local. Tu dois proposer UN SEUL sujet d'article de blog pour l'entreprise "${site.name}"${site.city ? ` située à "${site.city}"` : ""}.
 
 Informations sur l'entreprise :
 - Nom : "${site.name}"
 - Description : "${site.description || ""}"
 - Niche : "${site.niche || ""}"
 - URL : "${site.url || ""}"
+${site.city ? `- Ville : "${site.city}"` : ""}
 ${article.category ? `- Catégorie cible : "${article.category}"` : ""}
 
 ARTICLES DÉJÀ PUBLIÉS (à NE PAS répéter ni reformuler) :
