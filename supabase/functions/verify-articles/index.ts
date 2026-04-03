@@ -48,7 +48,7 @@ Catégorie: ${a.category || "N/A"}
 Aperçu contenu: ${contentPreview}...`;
     }).join("\n\n---\n\n");
 
-    const systemPrompt = `Tu es un expert en stratégie de contenu et SEO. On te donne une liste d'articles de blog planifiés pour le site "${siteName}" (${siteNiche || "activité locale"}).
+    const systemPrompt = `Tu es un expert en stratégie de contenu et SEO. On te donne une liste d'articles de blog planifiés pour le site "${siteName}"${siteCity ? ` à ${siteCity}` : ""} (${siteNiche || "activité locale"}).
 
 Ton rôle est d'analyser l'ENSEMBLE des articles et d'identifier :
 1. Les articles qui se répètent trop (même sujet, même angle, mêmes arguments)
