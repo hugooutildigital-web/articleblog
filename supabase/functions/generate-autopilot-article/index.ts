@@ -88,13 +88,14 @@ Retourne UNIQUEMENT le sujet, sans guillemets, sans explication.`;
     // ──────────────────────────────────────
     // PHASE 2: Generate the article
     // ──────────────────────────────────────
-    const articlePrompt = `Tu es un expert en rédaction web et en référencement local. Rédige un article de blog pour "${site.name}".
+    const articlePrompt = `Tu es un expert en rédaction web et en référencement local. Rédige un article de blog pour "${site.name}"${site.city ? ` située à "${site.city}"` : ""}.
 
 Informations entreprise :
 - Nom : "${site.name}"
 - Description : "${site.description || ""}"
 - Niche : "${site.niche || ""}"
 - URL : "${site.url || ""}"
+${site.city ? `- Ville : "${site.city}"` : ""}
 ${article.category ? `- Catégorie : "${article.category}"` : ""}
 ${article.tone ? `- Ton souhaité : "${article.tone}"` : ""}
 ${article.instructions ? `- Instructions spéciales : "${article.instructions}"` : ""}
