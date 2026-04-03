@@ -18,7 +18,7 @@ const Sites = () => {
   const deleteSite = useDeleteSite();
   const updateSite = useUpdateSite();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a" });
+  const [form, setForm] = useState({ name: "", url: "", blog_path: "/blog", description: "", niche: "", color: "#00e87a", city: "" });
   const [editingRevenue, setEditingRevenue] = useState<string | null>(null);
   const [revenueValue, setRevenueValue] = useState("");
 
